@@ -1,0 +1,21 @@
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# -------------------------------------------------------
+# IMPORTANT: DO NOT redirect Seamless Wallet callbacks
+# -------------------------------------------------------
+RewriteCond %{HTTPS} !=on
+RewriteCond %{REQUEST_URI} ^/api/response [NC]
+RewriteRule ^ - [L]
+
+# -------------------------------------------------------
+# Force https for everything else, but use 308 (keeps POST)
+# -------------------------------------------------------
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=308,L]
+
+# Remove trailing slash using 308 (keeps POST)
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} (.+)/$
+RewriteRule ^ %1 [R=308,L]
+</IfModule>
