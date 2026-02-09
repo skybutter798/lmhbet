@@ -1,5 +1,7 @@
-<script>
+/* resources/js/account.js */
 (function () {
+  'use strict';
+
   // =========================
   // Small utils
   // =========================
@@ -11,7 +13,6 @@
     return isNaN(n) ? 0 : n;
   }
 
-  // display only (with commas)
   function moneyFmtDisplay(n) {
     n = Number(n || 0);
     try {
@@ -21,7 +22,6 @@
     }
   }
 
-  // input value only (NO commas, backend numeric validation safe)
   function moneyFmtInput(n) {
     n = Number(n || 0);
     return (Math.round(n * 100) / 100).toFixed(2);
@@ -273,7 +273,6 @@
 
       if (maxBtn) maxBtn.setAttribute('data-max-value', String(getBal(from)));
 
-      // clamp typed value if > max (keep numeric-safe string)
       if (amount) {
         var cur = numVal(amount.value);
         var mx = getBal(from);
@@ -340,11 +339,11 @@
     if (!hasBonusRows()) return;
 
     try {
-      var res = await fetch("/wallet/bonus/records", {
-        method: "GET",
-        headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" },
-        credentials: "same-origin",
-        cache: "no-store",
+      var res = await fetch('/wallet/bonus/records', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+        cache: 'no-store'
       });
 
       if (res.status === 401) return;
@@ -356,27 +355,27 @@
         var row = document.querySelector('[data-bonus-id="' + r.id + '"]');
         if (!row) return;
 
-        var progEl = row.querySelector("[data-bonus-prog]");
-        var reqEl  = row.querySelector("[data-bonus-req]");
-        var pctEl  = row.querySelector("[data-bonus-pct]");
-        var barEl  = row.querySelector("[data-bonus-bar]");
+        var progEl = row.querySelector('[data-bonus-prog]');
+        var reqEl  = row.querySelector('[data-bonus-req]');
+        var pctEl  = row.querySelector('[data-bonus-pct]');
+        var barEl  = row.querySelector('[data-bonus-bar]');
 
-        var cur = r.currency || "";
-        setText(progEl, cur + " " + moneyFmtDisplay(Number(r.progress || 0)));
-        setText(reqEl,  cur + " " + moneyFmtDisplay(Number(r.required || 0)));
-        setText(pctEl,  Math.round(Number(r.pct || 0)) + "%");
+        var cur = r.currency || '';
+        setText(progEl, cur + ' ' + moneyFmtDisplay(Number(r.progress || 0)));
+        setText(reqEl,  cur + ' ' + moneyFmtDisplay(Number(r.required || 0)));
+        setText(pctEl,  Math.round(Number(r.pct || 0)) + '%');
 
-        if (barEl) barEl.style.width = String(r.pct || 0) + "%";
+        if (barEl) barEl.style.width = String(r.pct || 0) + '%';
       });
     } catch (e) {}
   }
 
-  document.addEventListener("visibilitychange", function () {
+  document.addEventListener('visibilitychange', function () {
     if (document.hidden) stopBonusPoll();
     else startBonusPoll();
   });
 
-  window.addEventListener("focus", function () {
+  window.addEventListener('focus', function () {
     fetchBonus();
   });
 
@@ -384,7 +383,7 @@
   // Global click handler (delegation)
   // =========================
   document.addEventListener('click', function (e) {
-    // open profile modal (email/phone/walletTransfer etc)
+    // open profile modal
     var opener = e.target.closest('[data-open-prof-modal]');
     if (opener) {
       e.preventDefault();
@@ -428,7 +427,7 @@
       return;
     }
 
-    // mobile dashboard collapse (hide shortcuts + tiles only)
+    // mobile dashboard collapse
     var mdBtn = e.target.closest('[data-mdash-toggle]');
     if (mdBtn) {
       var card = mdBtn.closest('[data-mdash]');
@@ -480,7 +479,7 @@
 
       var form = mBtn.closest('form');
       var wrap = mBtn.closest('[data-dep-methods]');
-      if (!form || !wrap) return;
+      if (!wrap) return;
 
       wrap.querySelectorAll('[data-method]').forEach(function (b) {
         b.classList.remove('is-active');
@@ -488,13 +487,15 @@
       mBtn.classList.add('is-active');
 
       var method = mBtn.getAttribute('data-method');
-      var inputM = form.querySelector('[data-dep-method-input]');
-      if (inputM) inputM.value = method;
+      if (form) {
+        var inputM = form.querySelector('[data-dep-method-input]');
+        if (inputM) inputM.value = method;
 
-      form.querySelectorAll('[data-visible-when]').forEach(function (el) {
-        var need = el.getAttribute('data-visible-when');
-        el.style.display = (need === method) ? '' : 'none';
-      });
+        form.querySelectorAll('[data-visible-when]').forEach(function (el) {
+          var need = el.getAttribute('data-visible-when');
+          el.style.display = (need === method) ? '' : 'none';
+        });
+      }
 
       return;
     }
@@ -555,7 +556,7 @@
       return;
     }
 
-    // deposit: notice toggle (supports multiple notices)
+    // deposit: notice toggle
     var nBtn = e.target.closest('[data-dep-notice-toggle]');
     if (nBtn) {
       e.preventDefault();
@@ -600,7 +601,6 @@
   // DOM ready init
   // =========================
   document.addEventListener('DOMContentLoaded', function () {
-    // init deposit summary per form
     document.querySelectorAll('form.dForm').forEach(function (form) {
       var methodInput = form.querySelector('[data-dep-method-input]');
       if (methodInput) {
@@ -621,20 +621,14 @@
       updateDepositSummary(form);
     });
 
-    // init internal transfer
     document.querySelectorAll('[data-it-root]').forEach(initInternalTransfer);
-
-    // init tabs
     document.querySelectorAll('.accTabs[data-tabs]').forEach(initTabs);
 
-    // open modal after validation/success
     if (window.__OPEN_PROFILE_MODAL__ === 'email') openModal('email');
     if (window.__OPEN_PROFILE_MODAL__ === 'phone') openModal('phone');
     if (window.__OPEN_PROFILE_MODAL__ === 'kyc') openModal('kyc');
     if (window.__OPEN_PROFILE_MODAL__ === 'walletTransfer') openModal('walletTransfer');
 
-    // wallet bonus poller (only if wallet rows exist)
     startBonusPoll();
   });
 })();
-</script>
