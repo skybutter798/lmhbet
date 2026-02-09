@@ -30,6 +30,7 @@ class AdminUserController extends Controller
         $user->load(['vipTier', 'kycProfile', 'referrer']);
 
         $wallets = $user->wallets()
+            ->whereNotIn('type', ['promote', 'extra'])
             ->select('id','type','balance','status','locked_until')
             ->orderBy('type')
             ->get();
@@ -106,7 +107,10 @@ class AdminUserController extends Controller
         try {
             $user->load(['vipTier', 'kycProfile', 'referrer']);
 
-            $wallets = $user->wallets()->orderBy('type')->get(['id','type','balance','status','locked_until']);
+            $wallets = $user->wallets()
+                     ->whereNotIn('type', ['promote', 'extra'])
+                     ->orderBy('type')
+                     ->get(['id','type','balance','status','locked_until']);
 
             $tx = $user->walletTransactions()
                 ->latest('id')
@@ -210,7 +214,8 @@ class AdminUserController extends Controller
     public function walletAdjust(Request $request, User $user)
     {
         $data = $request->validate([
-            'wallet_type' => ['required','string','in:main,chips,bonus,promote,extra'],
+            // 'wallet_type' => ['required','string','in:main,chips,bonus,promote,extra'],
+            'wallet_type' => ['required','string','in:main,chips,bonus'],
             'direction'   => ['required','string','in:credit,debit'],
             'amount'      => ['required','numeric','gt:0'],
             'title'       => ['nullable','string','max:120'],

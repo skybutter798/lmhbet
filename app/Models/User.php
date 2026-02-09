@@ -80,8 +80,8 @@ class User extends Authenticatable
                 \App\Models\Wallet::TYPE_MAIN,
                 \App\Models\Wallet::TYPE_CHIPS,
                 \App\Models\Wallet::TYPE_BONUS,
-                \App\Models\Wallet::TYPE_PROMOTE,
-                \App\Models\Wallet::TYPE_EXTRA,
+                // \App\Models\Wallet::TYPE_PROMOTE,
+                // \App\Models\Wallet::TYPE_EXTRA,
             ];
     
             $rows = [];

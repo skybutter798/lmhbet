@@ -223,8 +223,8 @@
             <option value="chips">chips</option>
             <option value="main">main</option>
             <option value="bonus">bonus</option>
-            <option value="promote">promote</option>
-            <option value="extra">extra</option>
+            <!-- <option value="promote">promote</option>
+            <option value="extra">extra</option> -->
           </select>
         </div>
 
