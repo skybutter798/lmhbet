@@ -33,6 +33,7 @@ use App\Http\Controllers\Admin\AdminDBOXGameController;
 use App\Http\Controllers\Admin\AdminDBOXGameSortController;
 use App\Http\Controllers\Admin\AdminDBOXImgUploadController;
 use App\Http\Controllers\Admin\AdminProfileController;
+use App\Http\Controllers\WalletBonusController;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
@@ -88,6 +89,15 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/wallet/chips/balance', [WalletBalanceController::class, 'chips'])
         ->name('wallet.chips.balance');
+
+    Route::get('/wallet/main/balance', [WalletBalanceController::class, 'main'])
+        ->name('wallet.main.balance');
+        
+    Route::get('/wallet/balances', [WalletBalanceController::class, 'all'])
+        ->name('wallet.balances');
+        
+    Route::get('/wallet/bonus/records', [WalletBonusController::class, 'records'])
+        ->name('wallet.bonus.records');
 });
 
 Route::get('/games', [GamesController::class, 'index'])->name('games.index');

@@ -40,13 +40,15 @@ return [
         'mkey'     => env('DBOX_MKEY', ''),
         'mscrt'    => env('DBOX_MSCRT', ''),
         'timeout'  => env('DBOX_TIMEOUT', 20),
+    
+        // ✅ add this
+        'game_wallet_type' => env('GAME_WALLET_TYPE', 'chips'),
+    
         'wallet_type_param' => env('DBOX_WALLET_TYPE_PARAM', 'merWltType'),
-        
         'wallet_type_map' => [
             'chips' => env('DBOX_WALLET_TYPE_CHIPS', 'CHIP'),
             'bonus' => env('DBOX_WALLET_TYPE_BONUS', 'BONUS'),
         ],
-
     ],
     
     'vpay' => [

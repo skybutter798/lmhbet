@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
+use App\Models\BetRecord;
+use App\Observers\BetRecordObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -31,5 +33,7 @@ class AppServiceProvider extends ServiceProvider
                 'bonus' => $wallets->get('bonus')?->balance ?? 0,
             ]);
         });
+        
+        BetRecord::observe(BetRecordObserver::class);
     }
 }

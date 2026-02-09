@@ -12,10 +12,15 @@ class DepositRequest extends Model
       'provider','out_trade_no','trade_no','pay_url','trade_code','paid_at','provider_payload',
     ];
     protected $casts = [
-      'amount' => 'decimal:2',
-      'processed_at' => 'datetime',
-      'paid_at' => 'datetime',
-      'provider_payload' => 'array',
+        'amount' => 'decimal:2',
+        'processed_at' => 'datetime',
+        'paid_at' => 'datetime',
+        'provider_payload' => 'array',
+        'bonus_amount' => 'decimal:2',
+        'turnover_required' => 'decimal:2',
+        'turnover_progress' => 'decimal:2',
+        'paid_at' => 'datetime',
+        'bonus_done_at' => 'datetime',
     ];
 
     public const STATUS_PENDING  = 'pending';
@@ -29,5 +34,10 @@ class DepositRequest extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+    
+    public function promotion()
+    {
+        return $this->belongsTo(\App\Models\Promotion::class, 'promotion_id');
     }
 }

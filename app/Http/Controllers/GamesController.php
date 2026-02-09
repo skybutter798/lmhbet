@@ -109,8 +109,9 @@ class GamesController extends Controller
     {
         $user = $request->user();
 
+        // ✅ include main
         $wallets = $user->wallets()
-            ->whereIn('type', ['chips', 'bonus'])
+            ->whereIn('type', ['main', 'chips', 'bonus'])
             ->get()
             ->keyBy('type');
 
@@ -118,8 +119,11 @@ class GamesController extends Controller
             'title' => $game->name,
             'game'  => $game,
 
+            // ✅ now play.blade gets $cash
+            'cash'  => (float) ($wallets->get('main')?->balance ?? 0),
             'chips' => (float) ($wallets->get('chips')?->balance ?? 0),
             'bonus' => (float) ($wallets->get('bonus')?->balance ?? 0),
+
             'currency' => $user->currency ?? 'MYR',
         ]);
     }

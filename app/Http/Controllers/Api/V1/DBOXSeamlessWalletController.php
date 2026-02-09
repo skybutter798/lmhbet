@@ -14,7 +14,19 @@ use Illuminate\Support\Facades\Log;
 
 class DBOXSeamlessWalletController extends Controller
 {
-    private const GAME_WALLET_TYPE = Wallet::TYPE_CHIPS;
+    private function gameWalletType(): string
+    {
+        // expected env values: main|chips|bonus (you decide)
+        $t = (string) config('services.dbox.game_wallet_type', 'chips');
+        $t = strtolower(trim($t));
+    
+        // Map to your wallet.type values in DB
+        if ($t === 'main')  return defined(Wallet::class.'::TYPE_MAIN')  ? Wallet::TYPE_MAIN  : 'main';
+        if ($t === 'bonus') return defined(Wallet::class.'::TYPE_BONUS') ? Wallet::TYPE_BONUS : 'bonus';
+    
+        // default chips
+        return defined(Wallet::class.'::TYPE_CHIPS') ? Wallet::TYPE_CHIPS : 'chips';
+    }
     private const SCALE = 2;
 
     // log channels (config/logging.php)
@@ -67,8 +79,10 @@ class DBOXSeamlessWalletController extends Controller
 
     private function getGameWalletForUser(User $user): Wallet
     {
+        $type = $this->gameWalletType();
+    
         return Wallet::firstOrCreate(
-            ['user_id' => $user->id, 'type' => self::GAME_WALLET_TYPE],
+            ['user_id' => $user->id, 'type' => $type],
             ['balance' => '0', 'status' => Wallet::STATUS_ACTIVE]
         );
     }

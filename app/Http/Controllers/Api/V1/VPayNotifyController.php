@@ -27,12 +27,14 @@ class VPayNotifyController extends Controller
             return response('FAIL', 200);
         }
 
-        // 2) must be JSON
         $body = $request->all();
 
-        // 3) sign verification
         $sign = (string) ($body['sign'] ?? '');
         unset($body['sign']);
+        
+        // VPay sends t in query; sometimes they also include it in JSON body.
+        // Do not include body t in signature if spec says it's query-only.
+        unset($body['t']);
 
         $t = (int) $request->query('t', 0); // they said query contains unix timestamp
         if ($t <= 0 || $sign === '') {
@@ -98,6 +100,48 @@ class VPayNotifyController extends Controller
                 $dep->paid_at = now();
                 $dep->processed_at = now();
                 $dep->save();
+                
+                // If promotion selected, compute bonus + turnover requirement (store on deposit)
+                if ($dep->promotion_id) {
+                    $promo = \App\Models\Promotion::query()->find($dep->promotion_id);
+                
+                    if ($promo && $promo->is_active) {
+                        $depositAmt = (float) $dep->amount;
+                
+                        // compute bonus
+                        $bonus = 0.0;
+                        if ($promo->bonus_type === 'fixed') {
+                            $bonus = (float) $promo->bonus_value;
+                        } else {
+                            $bonus = ($depositAmt * (float) $promo->bonus_value) / 100.0;
+                        }
+                
+                        // cap
+                        if ($promo->bonus_cap !== null && $bonus > (float)$promo->bonus_cap) {
+                            $bonus = (float)$promo->bonus_cap;
+                        }
+                
+                        // optional min/max gating (if not eligible, set bonus 0)
+                        if ($promo->min_amount !== null && $depositAmt < (float)$promo->min_amount) {
+                            $bonus = 0.0;
+                        }
+                        if ($promo->max_amount !== null && $depositAmt > (float)$promo->max_amount) {
+                            $bonus = 0.0;
+                        }
+                
+                        $bonus = round($bonus, 2);
+                
+                        $turn = (float) $promo->turnover_multiplier;
+                        if ($turn <= 0) $turn = 1;
+                
+                        $required = round(($depositAmt + $bonus) * $turn, 2);
+                
+                        $dep->bonus_amount = $bonus;
+                        $dep->turnover_required = $required;
+                        $dep->turnover_progress = $dep->turnover_progress ?? 0;
+                        $dep->bonus_status = $bonus > 0 ? 'in_progress' : 'none';
+                    }
+                }
 
                 // CREDIT wallet main
                 $wallet = Wallet::query()

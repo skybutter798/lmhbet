@@ -10,21 +10,25 @@ class Promotion extends Model
     protected $table = 'promotions';
 
     protected $fillable = [
-        'code',
-        'title',
-        'type',
-        'bonus_type',
-        'bonus_value',
-        'bonus_cap',
-        'min_amount',
-        'max_amount',
-        'turnover_multiplier',
+        'user_id',
         'currency',
-        'terms',
-        'is_active',
-        'starts_at',
-        'ends_at',
-        'sort_order',
+        'method',
+        'bank_name',
+        'promotion_id',     // ✅ ADD THIS
+        'amount',
+        'status',
+        'reference',
+        'remark',
+        'processed_at',
+
+        // if you want these mass-assignable too:
+        'provider',
+        'out_trade_no',
+        'trade_no',
+        'pay_url',
+        'trade_code',
+        'paid_at',
+        'provider_payload',
     ];
 
     protected $casts = [

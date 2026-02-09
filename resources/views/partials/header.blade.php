@@ -1,4 +1,17 @@
-{{-- header.blade.php --}}
+{{-- /home/lmh/app/resources/views/partials/header.blade.php --}}
+@php
+  // ✅ prevent "undefined variable $walletBalances" on pages that don't pass it
+  $walletBalances = $walletBalances ?? [];
+
+  $cash  = (float) ($walletBalances['main']  ?? 0);
+  $chips = (float) ($walletBalances['chips'] ?? 0);
+  $bonus = (float) ($walletBalances['bonus'] ?? 0);
+
+  $fmt = function ($v) {
+    return number_format((float)$v, 2, '.', ',');
+  };
+@endphp
+
 <header class="topbar">
   <div class="wrap topbar__inner">
 
@@ -24,28 +37,27 @@
           <button class="icoBtn" type="button" aria-label="Account" data-user-menu-btn>👤</button>
           <button class="icoBtn" type="button" aria-label="Message">✉️</button>
 
-          @php
-            $cash  = $walletBalances['main']  ?? 0;
-            $chips = $walletBalances['chips'] ?? 0;
-            $bonus = $walletBalances['bonus'] ?? 0;
-
-            $fmt = function ($v) {
-              return number_format((float)$v, 2, '.', ',');
-            };
-          @endphp
-
-          <div class="walletBtn" data-wallet-menu-btn>
+          {{-- ✅ LIVE hooks --}}
+          <div class="walletBtn" data-wallet-menu-btn data-wallet-live>
             <div class="walletBtn__top">
               <span class="walletBtn__label">Wallet ({{ auth()->user()->currency ?? 'MYR' }})</span>
               <span class="walletBtn__caret">▾</span>
             </div>
-            <div class="walletBtn__amt">$ {{ $fmt($cash) }}</div>
+            <div class="walletBtn__amt">
+              $ <span data-wallet-main>{{ $fmt($cash) }}</span>
+            </div>
           </div>
 
-          <div class="ddMenu" id="walletMenu" hidden>
-            <a href="{{ route('wallet.index', ['tab' => 'cash']) }}" class="ddItem"><span>Cash</span><span>$ {{ $fmt($cash) }}</span></a>
-            <a href="{{ route('wallet.index', ['tab' => 'chips']) }}" class="ddItem"><span>Chips</span><span>$ {{ $fmt($chips) }}</span></a>
-            <a href="{{ route('wallet.index', ['tab' => 'bonus']) }}" class="ddItem"><span>Bonus</span><span>$ {{ $fmt($bonus) }}</span></a>
+          <div class="ddMenu" id="walletMenu" hidden data-wallet-menu-live>
+            <a href="{{ route('wallet.index', ['tab' => 'cash']) }}" class="ddItem">
+              <span>Cash</span><span>$ <span data-wallet-main>{{ $fmt($cash) }}</span></span>
+            </a>
+            <a href="{{ route('wallet.index', ['tab' => 'chips']) }}" class="ddItem">
+              <span>Chips</span><span>$ <span data-wallet-chips>{{ $fmt($chips) }}</span></span>
+            </a>
+            <a href="{{ route('wallet.index', ['tab' => 'bonus']) }}" class="ddItem">
+              <span>Bonus</span><span>$ <span data-wallet-bonus>{{ $fmt($bonus) }}</span></span>
+            </a>
           </div>
 
           <div class="ddMenu" id="userMenu" hidden>
@@ -130,28 +142,26 @@
   <aside class="mDrawer__panel" role="dialog" aria-label="Mobile menu">
     <div class="mDrawer__top">
       @auth
-        @php
-          $cash  = $walletBalances['main']  ?? 0;
-          $chips = $walletBalances['chips'] ?? 0;
-          $bonus = $walletBalances['bonus'] ?? 0;
-
-          $fmt = function ($v) {
-            return number_format((float)$v, 2, '.', ',');
-          };
-        @endphp
-
-        <button class="mWallet" type="button" data-mwallet-btn>
+        <button class="mWallet" type="button" data-mwallet-btn data-wallet-live>
           <div class="mWallet__title">
             <span>Wallet ({{ auth()->user()->currency ?? 'MYR' }})</span>
             <span class="mWallet__caret">▾</span>
           </div>
-          <div class="mWallet__amt">$ {{ $fmt($cash) }}</div>
+          <div class="mWallet__amt">
+            $ <span data-wallet-main>{{ $fmt($cash) }}</span>
+          </div>
         </button>
 
         <div class="mWalletMenu" id="mWalletMenu" hidden>
-          <a class="mWalletMenu__item" href="{{ route('wallet.index', ['tab' => 'cash']) }}"><span>Cash</span><span>$ {{ $fmt($cash) }}</span></a>
-          <a class="mWalletMenu__item" href="{{ route('wallet.index', ['tab' => 'chips']) }}"><span>Chips</span><span>$ {{ $fmt($chips) }}</span></a>
-          <a class="mWalletMenu__item" href="{{ route('wallet.index', ['tab' => 'bonus']) }}"><span>Bonus</span><span>$ {{ $fmt($bonus) }}</span></a>
+          <a class="mWalletMenu__item" href="{{ route('wallet.index', ['tab' => 'cash']) }}">
+            <span>Cash</span><span>$ <span data-wallet-main>{{ $fmt($cash) }}</span></span>
+          </a>
+          <a class="mWalletMenu__item" href="{{ route('wallet.index', ['tab' => 'chips']) }}">
+            <span>Chips</span><span>$ <span data-wallet-chips>{{ $fmt($chips) }}</span></span>
+          </a>
+          <a class="mWalletMenu__item" href="{{ route('wallet.index', ['tab' => 'bonus']) }}">
+            <span>Bonus</span><span>$ <span data-wallet-bonus>{{ $fmt($bonus) }}</span></span>
+          </a>
         </div>
       @else
         <div class="mDrawer__guestTitle">Menu</div>
@@ -160,7 +170,6 @@
       <button class="mDrawer__close" type="button" aria-label="Close menu" data-mdrawer-close>✕</button>
     </div>
 
-    {{-- top grid --}}
     <div class="mGrid">
       <a class="mGrid__item is-active" href="{{ route('home') }}">
         <span class="mGrid__ico">🏠</span><span class="mGrid__lbl">Home</span>
@@ -183,7 +192,6 @@
     </div>
 
     @auth
-      {{-- logged-in shortcuts --}}
       <div class="mGrid mGrid--dense">
         <a class="mGrid__item" href="{{ route('wallet.index') }}"><span class="mGrid__ico">💳</span><span class="mGrid__lbl">Wallet</span></a>
         <a class="mGrid__item" href="{{ route('deposit.index') }}"><span class="mGrid__ico">🪙</span><span class="mGrid__lbl">Deposit</span></a>

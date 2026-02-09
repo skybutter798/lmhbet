@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use App\Models\DepositRequest;
 
 class WalletController extends Controller
 {
@@ -21,12 +22,23 @@ class WalletController extends Controller
             ->get()
             ->keyBy('type');
 
+        $bonusRecords = DepositRequest::query()
+            ->with(['promotion:id,title,turnover_multiplier'])
+            ->where('user_id', $user->id)
+            ->whereNotNull('promotion_id')
+            ->where('status', DepositRequest::STATUS_APPROVED)
+            ->whereIn('bonus_status', ['in_progress', 'done'])
+            ->orderByDesc('paid_at')
+            ->limit(50)
+            ->get();
+
         return view('wallets.index', [
             'title' => 'Wallet',
             'cash'  => $wallets->get('main')?->balance ?? 0,
             'chips' => $wallets->get('chips')?->balance ?? 0,
             'bonus' => $wallets->get('bonus')?->balance ?? 0,
             'currency' => $user->currency ?? 'MYR',
+            'bonusRecords' => $bonusRecords,
         ]);
     }
 
@@ -49,7 +61,6 @@ class WalletController extends Controller
         $from = $data['from'];
         $to   = $data['to'];
 
-        // Allowed pairs only
         $allowed = [
             'chips:main',
             'main:chips',
@@ -62,7 +73,6 @@ class WalletController extends Controller
             ]);
         }
 
-        // Normalize to 2dp (your WalletTransaction casts use decimal:2)
         $amtCents = $this->toCents($data['amount']);
         if ($amtCents <= 0) {
             throw ValidationException::withMessages([
@@ -85,14 +95,12 @@ class WalletController extends Controller
             $ua,
             $occurredAt
         ) {
-            // Lock involved wallets to prevent race conditions
             $wallets = $user->wallets()
                 ->whereIn('type', [$from, $to])
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('type');
 
-            // Ensure wallets exist
             $fromWallet = $wallets->get($from) ?: $user->wallets()->create([
                 'type' => $from,
                 'balance' => 0,
@@ -117,7 +125,6 @@ class WalletController extends Controller
             $fromAfterCents = $fromBeforeCents - $amtCents;
             $toAfterCents   = $toBeforeCents + $amtCents;
 
-            // Update balances
             $fromWallet->balance = $this->centsToMoney($fromAfterCents);
             $toWallet->balance   = $this->centsToMoney($toAfterCents);
 
@@ -126,7 +133,6 @@ class WalletController extends Controller
 
             $pairLabel = strtoupper($from) . ' -> ' . strtoupper($to);
 
-            // ✅ Debit leg (unique reference)
             WalletTransaction::create([
                 'user_id' => $user->id,
                 'wallet_id' => $fromWallet->id,
@@ -136,12 +142,9 @@ class WalletController extends Controller
                 'balance_before' => $this->centsToMoney($fromBeforeCents),
                 'balance_after' => $this->centsToMoney($fromAfterCents),
                 'status' => WalletTransaction::STATUS_COMPLETED,
-
-                // uniqueness-safe references
                 'reference' => $groupRef . '-D',
                 'provider'  => 'INT',
                 'round_ref' => $groupRef,
-
                 'title' => 'Internal Transfer',
                 'description' => $pairLabel,
                 'ip' => $ip,
@@ -155,7 +158,6 @@ class WalletController extends Controller
                 'occurred_at' => $occurredAt,
             ]);
 
-            // ✅ Credit leg (unique reference)
             WalletTransaction::create([
                 'user_id' => $user->id,
                 'wallet_id' => $toWallet->id,
@@ -165,11 +167,9 @@ class WalletController extends Controller
                 'balance_before' => $this->centsToMoney($toBeforeCents),
                 'balance_after' => $this->centsToMoney($toAfterCents),
                 'status' => WalletTransaction::STATUS_COMPLETED,
-
                 'reference' => $groupRef . '-C',
                 'provider'  => 'INT',
                 'round_ref' => $groupRef,
-
                 'title' => 'Internal Transfer',
                 'description' => $pairLabel,
                 'ip' => $ip,
@@ -191,7 +191,6 @@ class WalletController extends Controller
 
     private function toCents($value): int
     {
-        // normalize any input to 2dp cents
         return (int) round(((float) $value) * 100);
     }
 

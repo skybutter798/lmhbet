@@ -1,4 +1,36 @@
+<script>
 (function () {
+  // =========================
+  // Small utils
+  // =========================
+  function numVal(v) {
+    if (v === null || v === undefined) return 0;
+    var s = String(v).trim();
+    if (!s) return 0;
+    var n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
+  }
+
+  // display only (with commas)
+  function moneyFmtDisplay(n) {
+    n = Number(n || 0);
+    try {
+      return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } catch (e) {
+      return (Math.round(n * 100) / 100).toFixed(2);
+    }
+  }
+
+  // input value only (NO commas, backend numeric validation safe)
+  function moneyFmtInput(n) {
+    n = Number(n || 0);
+    return (Math.round(n * 100) / 100).toFixed(2);
+  }
+
+  function setText(el, txt) {
+    if (el) el.textContent = txt;
+  }
+
   function copyText(text) {
     if (!text) return;
 
@@ -19,6 +51,9 @@
     document.body.removeChild(ta);
   }
 
+  // =========================
+  // Modals
+  // =========================
   function modalEl(which) {
     if (which === 'email') return document.getElementById('pModalEmail');
     if (which === 'phone') return document.getElementById('pModalPhone');
@@ -45,30 +80,13 @@
   // =========================
   // Deposit helpers
   // =========================
-  function moneyFmt(n) {
-    n = Number(n || 0);
-    try {
-      return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    } catch (e) {
-      return (Math.round(n * 100) / 100).toFixed(2);
-    }
-  }
-
-  function numVal(v) {
-    if (v === null || v === undefined) return 0;
-    var s = String(v).trim();
-    if (!s) return 0;
-    var n = parseFloat(s);
-    return isNaN(n) ? 0 : n;
-  }
-
   function updateDepositSummary(form) {
     if (!form) return;
 
-    var amtInput = form.querySelector('[data-dep-amount]');
+    var amtInput  = form.querySelector('[data-dep-amount]');
     var promoInput = form.querySelector('[data-dep-promo-input]');
     var promoWrap = form.querySelector('[data-dep-promos]');
-    var summary = form.querySelector('[data-dep-summary]');
+    var summary   = form.querySelector('[data-dep-summary]');
 
     if (!amtInput || !promoWrap || !summary || !promoInput) return;
 
@@ -98,30 +116,33 @@
     if (turn <= 0) turn = 1;
 
     var bonus = 0;
-    if (bonusType === 'fixed') {
-      bonus = bonusValue;
-    } else {
-      bonus = (amount * bonusValue) / 100;
-    }
+    if (bonusType === 'fixed') bonus = bonusValue;
+    else bonus = (amount * bonusValue) / 100;
 
     if (bonusCap !== null && bonus > bonusCap) bonus = bonusCap;
-
     bonus = Math.round(bonus * 100) / 100;
 
     var req = (amount + bonus) * turn;
     req = Math.round(req * 100) / 100;
 
-    summary.querySelector('[data-sum-amount]').textContent = currency + ' ' + moneyFmt(amount);
-    summary.querySelector('[data-sum-promo]').textContent = title;
-    summary.querySelector('[data-sum-providers]').textContent = providers || '-';
-    summary.querySelector('[data-sum-turn]').textContent = 'x' + String(turn);
-    summary.querySelector('[data-sum-bonus]').textContent = currency + ' ' + moneyFmt(bonus);
-    summary.querySelector('[data-sum-req]').textContent = currency + ' ' + moneyFmt(req);
+    var elAmt = summary.querySelector('[data-sum-amount]');
+    var elPromo = summary.querySelector('[data-sum-promo]');
+    var elProviders = summary.querySelector('[data-sum-providers]');
+    var elTurn = summary.querySelector('[data-sum-turn]');
+    var elBonus = summary.querySelector('[data-sum-bonus]');
+    var elReq = summary.querySelector('[data-sum-req]');
+
+    if (elAmt) elAmt.textContent = currency + ' ' + moneyFmtDisplay(amount);
+    if (elPromo) elPromo.textContent = title;
+    if (elProviders) elProviders.textContent = providers || '-';
+    if (elTurn) elTurn.textContent = 'x' + String(turn);
+    if (elBonus) elBonus.textContent = currency + ' ' + moneyFmtDisplay(bonus);
+    if (elReq) elReq.textContent = currency + ' ' + moneyFmtDisplay(req);
 
     var warnEl = summary.querySelector('[data-sum-warn]');
     var warn = '';
-    if (minAmt !== null && amount < minAmt) warn = 'Minimum deposit for this promotion is ' + currency + ' ' + moneyFmt(minAmt) + '.';
-    if (!warn && maxAmt !== null && amount > maxAmt) warn = 'Maximum deposit for this promotion is ' + currency + ' ' + moneyFmt(maxAmt) + '.';
+    if (minAmt !== null && amount < minAmt) warn = 'Minimum deposit for this promotion is ' + currency + ' ' + moneyFmtDisplay(minAmt) + '.';
+    if (!warn && maxAmt !== null && amount > maxAmt) warn = 'Maximum deposit for this promotion is ' + currency + ' ' + moneyFmtDisplay(maxAmt) + '.';
 
     if (warnEl) {
       if (warn) {
@@ -158,8 +179,212 @@
     updateDepositSummary(form);
   }
 
+  // =========================
+  // Tabs (mobile + desktop)
+  // =========================
+  function initTabs(container) {
+    if (!container) return;
+
+    var tabs = Array.prototype.slice.call(container.querySelectorAll('.accTab[data-tab]'));
+    if (!tabs.length) return;
+
+    var scope =
+      container.closest('.accBlock') ||
+      container.closest('.mBlock') ||
+      container.parentElement;
+
+    function setTab(name) {
+      tabs.forEach(function (t) {
+        var active = (t.getAttribute('data-tab') === name);
+        t.classList.toggle('is-active', active);
+        t.setAttribute('aria-selected', String(active));
+      });
+
+      if (!scope) return;
+      scope.querySelectorAll('[data-panel]').forEach(function (p) {
+        p.classList.toggle('is-hidden', p.getAttribute('data-panel') !== name);
+      });
+    }
+
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function (e) {
+        e.preventDefault();
+        setTab(t.getAttribute('data-tab'));
+      });
+    });
+
+    var firstActive = container.querySelector('.accTab.is-active[data-tab]');
+    setTab(firstActive ? firstActive.getAttribute('data-tab') : tabs[0].getAttribute('data-tab'));
+  }
+
+  // =========================
+  // Internal Transfer init
+  // =========================
+  function walletLabel(t) {
+    if (t === 'main') return 'Cash';
+    if (t === 'chips') return 'Chips';
+    if (t === 'bonus') return 'Bonus';
+    return t;
+  }
+
+  function initInternalTransfer(root) {
+    if (!root) return;
+
+    var balMain  = numVal(root.getAttribute('data-b-main'));
+    var balChips = numVal(root.getAttribute('data-b-chips'));
+    var balBonus = numVal(root.getAttribute('data-b-bonus'));
+    var currency = root.getAttribute('data-currency') || '';
+
+    function getBal(t) {
+      if (t === 'main') return balMain;
+      if (t === 'chips') return balChips;
+      if (t === 'bonus') return balBonus;
+      return 0;
+    }
+
+    var opts = root.querySelectorAll('[data-it-option]');
+    var inFrom = root.querySelector('[data-it-from]');
+    var inTo = root.querySelector('[data-it-to]');
+    var amount = root.querySelector('[data-it-amount]');
+    var maxBtn = root.querySelector('[data-it-max]');
+
+    var fromNameEl = root.querySelector('[data-it-from-name]');
+    var toNameEl   = root.querySelector('[data-it-to-name]');
+    var fromBalEl  = root.querySelector('[data-it-from-bal]');
+    var toBalEl    = root.querySelector('[data-it-to-bal]');
+
+    function setActive(btn) {
+      if (!btn) return;
+
+      opts.forEach(function (b) { b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+
+      var from = btn.getAttribute('data-from');
+      var to   = btn.getAttribute('data-to');
+
+      if (inFrom) inFrom.value = from;
+      if (inTo) inTo.value = to;
+
+      if (fromNameEl) fromNameEl.textContent = walletLabel(from);
+      if (toNameEl) toNameEl.textContent = walletLabel(to);
+
+      if (fromBalEl) fromBalEl.textContent = currency + ' ' + moneyFmtDisplay(getBal(from));
+      if (toBalEl)   toBalEl.textContent   = currency + ' ' + moneyFmtDisplay(getBal(to));
+
+      if (maxBtn) maxBtn.setAttribute('data-max-value', String(getBal(from)));
+
+      // clamp typed value if > max (keep numeric-safe string)
+      if (amount) {
+        var cur = numVal(amount.value);
+        var mx = getBal(from);
+        if (cur > mx) amount.value = moneyFmtInput(mx);
+      }
+    }
+
+    opts.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        setActive(btn);
+      });
+    });
+
+    if (maxBtn) {
+      maxBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        var mx = numVal(maxBtn.getAttribute('data-max-value'));
+        if (amount) {
+          amount.value = moneyFmtInput(mx);
+          amount.focus();
+        }
+      });
+    }
+
+    root.querySelectorAll('[data-it-quick-amt]').forEach(function (q) {
+      q.addEventListener('click', function (e) {
+        e.preventDefault();
+        var v = q.getAttribute('data-it-quick-amt');
+        if (amount) {
+          amount.value = moneyFmtInput(numVal(v));
+          amount.focus();
+        }
+      });
+    });
+
+    var first = root.querySelector('[data-it-option].is-active') || (opts.length ? opts[0] : null);
+    setActive(first);
+  }
+
+  // =========================
+  // Bonus poller (wallet page)
+  // =========================
+  var bonusTimer = null;
+
+  function hasBonusRows() {
+    return !!document.querySelector('[data-bonus-id] [data-bonus-prog], [data-bonus-id] [data-bonus-req], [data-bonus-id] [data-bonus-pct]');
+  }
+
+  function stopBonusPoll() {
+    if (!bonusTimer) return;
+    clearInterval(bonusTimer);
+    bonusTimer = null;
+  }
+
+  function startBonusPoll() {
+    if (bonusTimer) return;
+    if (!hasBonusRows()) return;
+
+    fetchBonus();
+    bonusTimer = setInterval(fetchBonus, 2500);
+  }
+
+  async function fetchBonus() {
+    if (!hasBonusRows()) return;
+
+    try {
+      var res = await fetch("/wallet/bonus/records", {
+        method: "GET",
+        headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" },
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+
+      if (res.status === 401) return;
+
+      var data = await res.json().catch(function () { return null; });
+      if (!res.ok || !data || !data.ok) return;
+
+      (data.records || []).forEach(function (r) {
+        var row = document.querySelector('[data-bonus-id="' + r.id + '"]');
+        if (!row) return;
+
+        var progEl = row.querySelector("[data-bonus-prog]");
+        var reqEl  = row.querySelector("[data-bonus-req]");
+        var pctEl  = row.querySelector("[data-bonus-pct]");
+        var barEl  = row.querySelector("[data-bonus-bar]");
+
+        var cur = r.currency || "";
+        setText(progEl, cur + " " + moneyFmtDisplay(Number(r.progress || 0)));
+        setText(reqEl,  cur + " " + moneyFmtDisplay(Number(r.required || 0)));
+        setText(pctEl,  Math.round(Number(r.pct || 0)) + "%");
+
+        if (barEl) barEl.style.width = String(r.pct || 0) + "%";
+      });
+    } catch (e) {}
+  }
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) stopBonusPoll();
+    else startBonusPoll();
+  });
+
+  window.addEventListener("focus", function () {
+    fetchBonus();
+  });
+
+  // =========================
+  // Global click handler (delegation)
+  // =========================
   document.addEventListener('click', function (e) {
-    // open profile modal (email/phone)
+    // open profile modal (email/phone/walletTransfer etc)
     var opener = e.target.closest('[data-open-prof-modal]');
     if (opener) {
       e.preventDefault();
@@ -239,7 +464,7 @@
       var inputAmt = document.querySelector('[data-withdraw-amount]');
       if (!inputAmt || inputAmt.disabled) return;
 
-      inputAmt.value = amt;
+      inputAmt.value = String(amt);
       inputAmt.focus();
       return;
     }
@@ -266,7 +491,6 @@
       var inputM = form.querySelector('[data-dep-method-input]');
       if (inputM) inputM.value = method;
 
-      // show/hide blocks only inside this form
       form.querySelectorAll('[data-visible-when]').forEach(function (el) {
         var need = el.getAttribute('data-visible-when');
         el.style.display = (need === method) ? '' : 'none';
@@ -372,30 +596,45 @@
     }
   });
 
-  // on load: init per form
-  document.querySelectorAll('form.dForm').forEach(function (form) {
-    var methodInput = form.querySelector('[data-dep-method-input]');
-    if (methodInput) {
-      var method = methodInput.value || 'bank_transfer';
-      form.querySelectorAll('[data-visible-when]').forEach(function (el) {
-        var need = el.getAttribute('data-visible-when');
-        el.style.display = (need === method) ? '' : 'none';
-      });
-    }
+  // =========================
+  // DOM ready init
+  // =========================
+  document.addEventListener('DOMContentLoaded', function () {
+    // init deposit summary per form
+    document.querySelectorAll('form.dForm').forEach(function (form) {
+      var methodInput = form.querySelector('[data-dep-method-input]');
+      if (methodInput) {
+        var method = methodInput.value || 'bank_transfer';
+        form.querySelectorAll('[data-visible-when]').forEach(function (el) {
+          var need = el.getAttribute('data-visible-when');
+          el.style.display = (need === method) ? '' : 'none';
+        });
+      }
 
-    var amtInput = form.querySelector('[data-dep-amount]');
-    if (amtInput) {
-      amtInput.addEventListener('input', function () {
-        updateDepositSummary(form);
-      });
-    }
+      var amtInput = form.querySelector('[data-dep-amount]');
+      if (amtInput) {
+        amtInput.addEventListener('input', function () {
+          updateDepositSummary(form);
+        });
+      }
 
-    updateDepositSummary(form);
+      updateDepositSummary(form);
+    });
+
+    // init internal transfer
+    document.querySelectorAll('[data-it-root]').forEach(initInternalTransfer);
+
+    // init tabs
+    document.querySelectorAll('.accTabs[data-tabs]').forEach(initTabs);
+
+    // open modal after validation/success
+    if (window.__OPEN_PROFILE_MODAL__ === 'email') openModal('email');
+    if (window.__OPEN_PROFILE_MODAL__ === 'phone') openModal('phone');
+    if (window.__OPEN_PROFILE_MODAL__ === 'kyc') openModal('kyc');
+    if (window.__OPEN_PROFILE_MODAL__ === 'walletTransfer') openModal('walletTransfer');
+
+    // wallet bonus poller (only if wallet rows exist)
+    startBonusPoll();
   });
-
-  // open on validation errors
-  if (window.__OPEN_PROFILE_MODAL__ === 'email') openModal('email');
-  if (window.__OPEN_PROFILE_MODAL__ === 'phone') openModal('phone');
-  if (window.__OPEN_PROFILE_MODAL__ === 'kyc') openModal('kyc');
-  if (window.__OPEN_PROFILE_MODAL__ === 'walletTransfer') openModal('walletTransfer');
 })();
+</script>

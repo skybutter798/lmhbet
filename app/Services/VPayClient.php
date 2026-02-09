@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 class VPayClient
@@ -26,16 +25,17 @@ class VPayClient
     }
 
     /**
-     * Signature rules (based on your doc):
+     * Signature rules:
      * - sort body params by ASCII key
-     * - exclude empty and exclude sign
+     * - exclude empty and exclude sign (and any non-signed fields if needed)
      * - MD5(strA) uppercase = ap
      * - dt = local datetime from unix timestamp t (yyyy-MM-dd HH:mm:ss)
      * - strB = token=...&dt=...&ap=...
-     * - sign = base64(strB) uppercase
+     * - sign = base64(strB)  (DO NOT uppercase base64; it's case-sensitive)
      */
     public function sign(array $params, int $unixTime): string
     {
+        // Remove sign itself and any fields you don't want included
         unset($params['sign']);
 
         $filtered = [];
@@ -49,7 +49,7 @@ class VPayClient
 
         $pairs = [];
         foreach ($filtered as $k => $v) {
-            // IMPORTANT: do not urlencode, follow doc example (spaces stay spaces)
+            // do not urlencode; follow doc example
             $pairs[] = $k . '=' . $v;
         }
         $strA = implode('&', $pairs);
@@ -60,7 +60,9 @@ class VPayClient
         $dt = date('Y-m-d H:i:s', $unixTime);
 
         $strB = "token={$this->token}&dt={$dt}&ap={$ap}";
-        return strtoupper(base64_encode($strB));
+
+        // IMPORTANT: DO NOT strtoupper() base64 output
+        return base64_encode($strB);
     }
 
     public function unifiedOrder(array $params): array
@@ -97,7 +99,8 @@ class VPayClient
     public function verifySign(array $body, int $unixTime, string $sign): bool
     {
         $expected = $this->sign($body, $unixTime);
-        // timing safe compare
-        return hash_equals($expected, strtoupper($sign));
+
+        // IMPORTANT: do NOT strtoupper($sign) either
+        return hash_equals($expected, $sign);
     }
 }

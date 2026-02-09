@@ -1,4 +1,4 @@
-// app.js
+// /home/lmh/app/public/js/app.js
 document.addEventListener("DOMContentLoaded", () => {
   // Slider
   const slider = document.querySelector("[data-slider]");
@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const next = slider.querySelector("[data-next]");
     const dotsWrap = slider.querySelector("[data-dots]");
     const dots = dotsWrap ? Array.from(dotsWrap.querySelectorAll("[data-dot]")) : [];
-    let idx = slides.findIndex(s => s.classList.contains("is-active"));
+    let idx = slides.findIndex((s) => s.classList.contains("is-active"));
     if (idx < 0) idx = 0;
 
     const setActive = (n) => {
@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let timer = setInterval(() => setActive(idx + 1), 7000);
     slider.addEventListener("mouseenter", () => clearInterval(timer));
-    slider.addEventListener("mouseleave", () => timer = setInterval(() => setActive(idx + 1), 7000));
+    slider.addEventListener("mouseleave", () => (timer = setInterval(() => setActive(idx + 1), 7000)));
   }
 
   // Tabs filter (provider grid)
@@ -40,8 +40,8 @@ document.addEventListener("DOMContentLoaded", () => {
       buttons.forEach((b) => b.classList.toggle("is-active", (b.dataset.filter || "all") === f));
 
       tiles.forEach((t) => {
-        const raw = (t.dataset.cat || "").trim();            // e.g. "slots table-game live-casino"
-        const cats = raw.split(/\s+/).filter(Boolean);       // ["slots","table-game","live-casino"]
+        const raw = (t.dataset.cat || "").trim();
+        const cats = raw.split(/\s+/).filter(Boolean);
 
         const show = f === "all" || cats.includes(f);
         t.style.display = show ? "" : "none";
@@ -52,10 +52,8 @@ document.addEventListener("DOMContentLoaded", () => {
       b.addEventListener("click", () => apply(b.dataset.filter || "all"));
     });
 
-    // Optional: ensure correct initial state if you ever render with a different default
     apply("all");
   }
-
 
   // Back to top
   document.querySelector("[data-to-top]")?.addEventListener("click", (e) => {
@@ -97,7 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") hideMenus();
   });
-  
+
   // ----------------------------
   // MOBILE DRAWER (hamburger menu)
   // ----------------------------
@@ -118,7 +116,6 @@ document.addEventListener("DOMContentLoaded", () => {
     drawer.setAttribute("aria-hidden", "true");
     document.body.classList.remove("drawer-open");
 
-    // wait for slide animation
     window.setTimeout(() => {
       if (!drawer.classList.contains("is-open")) drawer.hidden = true;
     }, 250);
@@ -136,17 +133,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // prevent backdrop click when tapping inside panel
   drawer?.querySelector(".mDrawer__panel")?.addEventListener("click", (e) => {
     e.stopPropagation();
   });
 
-  // close on ESC
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeDrawer();
   });
 
-  // close drawer when clicking a link inside it (nice UX)
   drawer?.addEventListener("click", (e) => {
     const a = e.target.closest("a");
     if (!a) return;
@@ -169,7 +163,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   drawer?.addEventListener("click", hideMWallet);
 
-
   // AUTH MODAL open/close + tabs + otp tabs + password toggle
   (() => {
     const modal = document.getElementById("authModal");
@@ -186,13 +179,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const otpPanes = Array.from(modal.querySelectorAll("[data-otp-pane]"));
 
     const setMode = (mode) => {
-      tabBtns.forEach(b => b.classList.toggle("is-active", b.dataset.authTab === mode));
-      panes.forEach(p => p.classList.toggle("is-active", p.dataset.authPane === mode));
+      tabBtns.forEach((b) => b.classList.toggle("is-active", b.dataset.authTab === mode));
+      panes.forEach((p) => p.classList.toggle("is-active", p.dataset.authPane === mode));
 
       if (title) title.textContent = mode === "register" ? "Create Account" : "Sign In";
-      if (sub) sub.textContent = mode === "register"
-        ? "Fill in your details to register."
-        : "Use your username and password.";
+      if (sub)
+        sub.textContent =
+          mode === "register" ? "Fill in your details to register." : "Use your username and password.";
     };
 
     const open = (mode) => {
@@ -202,14 +195,13 @@ document.addEventListener("DOMContentLoaded", () => {
       body.style.overflow = "hidden";
       setMode(mode || "login");
     };
-    
+
     const close = () => {
       modal.classList.remove("is-open");
       modal.setAttribute("aria-hidden", "true");
       body.classList.remove("modal-open");
       body.style.overflow = "";
     };
-
 
     document.querySelectorAll("[data-open-modal]").forEach((el) => {
       el.addEventListener("click", () => open(el.dataset.openModal));
@@ -228,8 +220,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     const setOtp = (mode) => {
-      otpTabBtns.forEach(b => b.classList.toggle("is-active", b.dataset.otpTab === mode));
-      otpPanes.forEach(p => p.classList.toggle("is-active", p.dataset.otpPane === mode));
+      otpTabBtns.forEach((b) => b.classList.toggle("is-active", b.dataset.otpTab === mode));
+      otpPanes.forEach((p) => p.classList.toggle("is-active", p.dataset.otpPane === mode));
       const otpTypeInput = modal.querySelector('input[name="otp_type"]');
       if (otpTypeInput) otpTypeInput.value = mode;
     };
@@ -283,12 +275,12 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   });
-  
+
   // ----------------------------
   // Launch game (shared: Home + Games page)
   // ----------------------------
   const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
-  const launching = new Set(); // prevent double click spam
+  const launching = new Set();
   const launchGame = async (gameId, el) => {
     if (!gameId) return;
     if (launching.has(gameId)) return;
@@ -304,43 +296,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       const res = await fetch("/games/launch", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": csrf,
-            "X-Requested-With": "XMLHttpRequest",
-            "Accept": "application/json", // ✅ important: forces JSON response
-          },
-          credentials: "same-origin",
-          body: JSON.stringify({ game_id: Number(gameId) }),
-        });
-        
-        if (res.status === 401) {
-          alert("Please register or login");
-        
-          // Optional: open your auth modal directly
-          if (typeof window.__OPEN_AUTH_MODAL__ === "string") {
-            window.__OPEN_AUTH_MODAL__ = "login";
-          } else {
-            // call your open modal trigger
-            document.querySelector('[data-open-modal="login"]')?.click();
-          }
-        
-          return;
-        }
-        
-        const data = await res.json().catch(() => null);
-        
-        const url = data?.url || data?.data?.url;
-        const ok = data?.ok === true || data?.code === 0;
-        
-        if (!res.ok || !ok || !url) {
-          alert(data?.message || data?.msg || "Launch failed");
-          return;
-        }
-        
-        window.location.href = `/play/${gameId}`;
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-TOKEN": csrf,
+          "X-Requested-With": "XMLHttpRequest",
+          "Accept": "application/json",
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({ game_id: Number(gameId) }),
+      });
 
+      if (res.status === 401) {
+        alert("Please register or login");
+        document.querySelector('[data-open-modal="login"]')?.click();
+        return;
+      }
+
+      const data = await res.json().catch(() => null);
+      const url = data?.url || data?.data?.url;
+      const ok = data?.ok === true || data?.code === 0;
+
+      if (!res.ok || !ok || !url) {
+        alert(data?.message || data?.msg || "Launch failed");
+        return;
+      }
+
+      window.location.href = `/play/${gameId}`;
     } catch (e) {
       alert("Network error launching game.");
     } finally {
@@ -353,7 +335,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // Event delegation (works everywhere)
   document.body.addEventListener("click", (e) => {
     const card = e.target.closest("[data-launch-game]");
     if (!card) return;
@@ -363,12 +344,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const gameId = card.getAttribute("data-game-id");
     launchGame(gameId, card);
   });
-  
+
   // ----------------------------
   // Deterministic placeholder colors
   // ----------------------------
   const hash32 = (str) => {
-    // FNV-1a 32-bit
     let h = 0x811c9dc5;
     for (let i = 0; i < str.length; i++) {
       h ^= str.charCodeAt(i);
@@ -378,21 +358,20 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const hslToHex = (h, s, l) => {
-    // h:0-360, s/l:0-100
-    s /= 100; l /= 100;
+    s /= 100;
+    l /= 100;
     const k = (n) => (n + h / 30) % 12;
     const a = s * Math.min(l, 1 - l);
-    const f = (n) =>
-      l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
     const toHex = (x) => Math.round(255 * x).toString(16).padStart(2, "0");
     return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
   };
 
   const pickColor = (key) => {
     const h = hash32(String(key || "x"));
-    const hue = h % 360;                   // 0..359
-    const sat = 62 + (h % 18);             // 62..79
-    const light = 38 + ((h >>> 8) % 14);   // 38..51 (dark-ui friendly)
+    const hue = h % 360;
+    const sat = 62 + (h % 18);
+    const light = 38 + ((h >>> 8) % 14);
     return hslToHex(hue, sat, light);
   };
 
@@ -400,54 +379,144 @@ document.addEventListener("DOMContentLoaded", () => {
     const key = el.getAttribute("data-ph") || "";
     el.style.setProperty("--ph", pickColor(key));
   });
-  
-    // ----------------------------
-    // Wallet strip accordion (collapse / expand) - MOBILE ONLY
-    // ----------------------------
-    (() => {
-      const walletAcc = document.querySelector("[data-wallet-acc]");
-      if (!walletAcc) return;
-    
-      const btn = walletAcc.querySelector("[data-wallet-acc-btn]");
-      const body = walletAcc.querySelector("[data-wallet-acc-body]");
-      if (!btn || !body) return;
-    
-      const mq = window.matchMedia("(max-width: 900px)");
-    
-      const setOpen = (open) => {
-        btn.setAttribute("aria-expanded", open ? "true" : "false");
-        walletAcc.classList.toggle("is-collapsed", !open);
-        body.style.maxHeight = open ? body.scrollHeight + "px" : "0px";
-      };
-    
-      const syncMode = () => {
-        if (mq.matches) {
-          // MOBILE: enable accordion, default open (or change to false if you want collapsed)
-          requestAnimationFrame(() => setOpen(true));
-          btn.style.pointerEvents = "";
-        } else {
-          // DESKTOP: disable accordion behavior + remove inline styles
-          walletAcc.classList.remove("is-collapsed");
-          btn.setAttribute("aria-expanded", "true");
-          body.style.maxHeight = "";       // important: removes max-height: 96px
-          btn.style.pointerEvents = "none"; // optional: make header non-clickable on desktop
-        }
-      };
-    
-      btn.addEventListener("click", () => {
-        if (!mq.matches) return; // desktop: ignore clicks
-        const isOpen = btn.getAttribute("aria-expanded") === "true";
-        setOpen(!isOpen);
-      });
-    
-      window.addEventListener("resize", () => {
-        if (!mq.matches) return;
-        const isOpen = btn.getAttribute("aria-expanded") === "true";
-        if (isOpen) body.style.maxHeight = body.scrollHeight + "px";
-      });
-    
-      mq.addEventListener?.("change", syncMode);
-      syncMode();
-    })();
 
+  // ----------------------------
+  // Wallet strip accordion (collapse / expand) - MOBILE ONLY
+  // ----------------------------
+  (() => {
+    const walletAcc = document.querySelector("[data-wallet-acc]");
+    if (!walletAcc) return;
+
+    const btn = walletAcc.querySelector("[data-wallet-acc-btn]");
+    const body = walletAcc.querySelector("[data-wallet-acc-body]");
+    if (!btn || !body) return;
+
+    const mq = window.matchMedia("(max-width: 900px)");
+
+    const setOpen = (open) => {
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      walletAcc.classList.toggle("is-collapsed", !open);
+      body.style.maxHeight = open ? body.scrollHeight + "px" : "0px";
+    };
+
+    const syncMode = () => {
+      if (mq.matches) {
+        requestAnimationFrame(() => setOpen(true));
+        btn.style.pointerEvents = "";
+      } else {
+        walletAcc.classList.remove("is-collapsed");
+        btn.setAttribute("aria-expanded", "true");
+        body.style.maxHeight = "";
+        btn.style.pointerEvents = "none";
+      }
+    };
+
+    btn.addEventListener("click", () => {
+      if (!mq.matches) return;
+      const isOpen = btn.getAttribute("aria-expanded") === "true";
+      setOpen(!isOpen);
+    });
+
+    window.addEventListener("resize", () => {
+      if (!mq.matches) return;
+      const isOpen = btn.getAttribute("aria-expanded") === "true";
+      if (isOpen) body.style.maxHeight = body.scrollHeight + "px";
+    });
+
+    mq.addEventListener?.("change", syncMode);
+    syncMode();
+  })();
+
+  // ----------------------------
+  // ✅ LIVE WALLET BALANCES (Header + Mobile Drawer)
+  // ----------------------------
+  (() => {
+    const anyHook =
+      document.querySelector("[data-wallet-main]") ||
+      document.querySelector("[data-wallet-chips]") ||
+      document.querySelector("[data-wallet-bonus]");
+    if (!anyHook) return;
+
+    const moneyFmt = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+    const setTextAll = (selector, val) => {
+      document.querySelectorAll(selector).forEach((el) => {
+        el.textContent = val;
+      });
+    };
+
+    const state = {
+      main: null,
+      chips: null,
+      bonus: null,
+      currency: null,
+    };
+
+    const applyBalances = (payload) => {
+      const main = Number(payload?.main);
+      const chips = Number(payload?.chips);
+      const bonus = Number(payload?.bonus);
+
+      if (Number.isFinite(main) && state.main !== main) {
+        state.main = main;
+        setTextAll("[data-wallet-main]", moneyFmt.format(main));
+      }
+
+      if (Number.isFinite(chips) && state.chips !== chips) {
+        state.chips = chips;
+        setTextAll("[data-wallet-chips]", moneyFmt.format(chips));
+      }
+
+      if (Number.isFinite(bonus) && state.bonus !== bonus) {
+        state.bonus = bonus;
+        setTextAll("[data-wallet-bonus]", moneyFmt.format(bonus));
+      }
+    };
+
+    let pollTimer = null;
+
+    const fetchAll = async () => {
+      try {
+        const res = await fetch("/wallet/balances", {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+
+        if (res.status === 401) return;
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.ok) return;
+
+        applyBalances(data);
+      } catch (e) {}
+    };
+
+    const start = () => {
+      if (pollTimer) return;
+      fetchAll();
+      pollTimer = setInterval(fetchAll, 2500);
+    };
+
+    const stop = () => {
+      if (!pollTimer) return;
+      clearInterval(pollTimer);
+      pollTimer = null;
+    };
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stop();
+      else start();
+    });
+
+    window.addEventListener("focus", fetchAll);
+
+    start();
+  })();
 });

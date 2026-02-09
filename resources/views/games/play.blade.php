@@ -4,6 +4,18 @@
 @section('body')
   @include('partials.header')
 
+  @php
+    // Switch these to control what the game page shows + polls:
+    // 'chips' => /wallet/chips/balance
+    // 'main'  => /wallet/main/balance
+    $gameWalletType = 'main'; // CHANGE HERE: 'main' or 'chips'
+
+    $walletLabel = $gameWalletType === 'main' ? 'CASH' : 'CHIPS';
+    $walletBalance = $gameWalletType === 'main'
+      ? (float)($cash ?? 0)
+      : (float)($chips ?? 0);
+  @endphp
+
   <main style="min-height: calc(100vh - 80px);">
     <div class="wrap" style="padding: 16px 0;">
       <h1 style="margin:0 0 8px;">{{ $game->name }}</h1>
@@ -73,10 +85,10 @@
       </div>
 
       <div style="margin-top:10px; opacity:.7; font-size:13px;">
-        Game wallet (CHIPS):
+        Game wallet ({{ $walletLabel }}):
         <b>
-          <span id="chipsCurrency">{{ $currency }}</span>
-          <span id="chipsBalance">{{ number_format((float)$chips, 2, '.', ',') }}</span>
+          <span id="gameCurrency">{{ $currency }}</span>
+          <span id="gameBalance">{{ number_format($walletBalance, 2, '.', ',') }}</span>
         </b>
       </div>
     </div>
@@ -88,14 +100,17 @@
     const FORCE_NEW_TAB_IDS = [241, 1278, 1277];
     const needsNewTab = FORCE_NEW_TAB_IDS.includes(GAME_ID);
 
+    const GAME_WALLET_TYPE = @json($gameWalletType); // "main" or "chips"
+    const BALANCE_URL = (GAME_WALLET_TYPE === "main") ? "/wallet/main/balance" : "/wallet/chips/balance";
+
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
     const msg = document.getElementById("gameMsg");
     const frame = document.getElementById("gameFrame");
     const openNewTab = document.getElementById("openNewTab");
     const goFull = document.getElementById("goFull");
 
-    const chipsCurrencyEl = document.getElementById("chipsCurrency");
-    const chipsBalanceEl = document.getElementById("chipsBalance");
+    const gameCurrencyEl = document.getElementById("gameCurrency");
+    const gameBalanceEl = document.getElementById("gameBalance");
 
     const overlay = document.getElementById("openInTabOverlay");
     const overlayBtn = document.getElementById("openInTabBtn");
@@ -169,13 +184,30 @@
       }
     };
 
-    // ---- chips polling
+    // ---- wallet polling
     let pollTimer = null;
-    let lastChips = null;
+    let lastBal = null;
 
-    const fetchChipsBalance = async () => {
+    const readBalance = (data) => {
+      // accepts either:
+      // { ok:true, currency:'MYR', balance: 1.23 }
+      // OR older shape:
+      // { ok:true, currency:'MYR', chips: 1.23 } / { ok:true, currency:'MYR', main: 1.23 } / { ok:true, currency:'MYR', cash: 1.23 }
+      if (!data) return null;
+      if (data.balance !== undefined) return Number(data.balance);
+      if (GAME_WALLET_TYPE === "main") {
+        if (data.main !== undefined) return Number(data.main);
+        if (data.cash !== undefined) return Number(data.cash);
+      }
+      if (GAME_WALLET_TYPE === "chips") {
+        if (data.chips !== undefined) return Number(data.chips);
+      }
+      return null;
+    };
+
+    const fetchGameBalance = async () => {
       try {
-        const res = await fetch("/wallet/chips/balance", {
+        const res = await fetch(BALANCE_URL, {
           method: "GET",
           headers: {
             "Accept": "application/json",
@@ -188,22 +220,22 @@
         const data = await res.json().catch(() => null);
         if (!res.ok || !data?.ok) return;
 
-        if (chipsCurrencyEl && data.currency) chipsCurrencyEl.textContent = data.currency;
+        if (gameCurrencyEl && data.currency) gameCurrencyEl.textContent = data.currency;
 
-        const chips = Number(data.chips);
-        if (!Number.isFinite(chips)) return;
+        const bal = readBalance(data);
+        if (!Number.isFinite(bal)) return;
 
-        if (lastChips === null || Math.abs(lastChips - chips) > 0.000001) {
-          lastChips = chips;
-          if (chipsBalanceEl) chipsBalanceEl.textContent = moneyFmt.format(chips);
+        if (lastBal === null || Math.abs(lastBal - bal) > 0.000001) {
+          lastBal = bal;
+          if (gameBalanceEl) gameBalanceEl.textContent = moneyFmt.format(bal);
         }
       } catch (e) {}
     };
 
     const startPolling = () => {
       if (pollTimer) return;
-      fetchChipsBalance();
-      pollTimer = setInterval(fetchChipsBalance, 2500);
+      fetchGameBalance();
+      pollTimer = setInterval(fetchGameBalance, 2500);
     };
 
     const stopPolling = () => {
@@ -217,7 +249,7 @@
       else startPolling();
     });
 
-    window.addEventListener("focus", fetchChipsBalance);
+    window.addEventListener("focus", fetchGameBalance);
 
     // ---- launch game
     let fallbackTimer = null;
