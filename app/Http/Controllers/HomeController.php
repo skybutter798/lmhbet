@@ -4,15 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\DBOXGame;
 use App\Models\DBOXProvider;
+use App\Models\DepositRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class HomeController extends Controller
 {
-    /**
-     * Parent groups you want to show as tabs.
-     * Keys here become the filter keys used in data-filter / data-cat.
-     */
     private const GROUPS = [
         'slots' => [
             'label' => 'Slots',
@@ -34,16 +31,16 @@ class HomeController extends Controller
 
     public function index(): View
     {
-        $currency = auth()->user()->currency ?? 'MYR';
+        $currency = auth()->check()
+            ? (auth()->user()->currency ?? 'MYR')
+            : 'MYR';
 
         $providers = DBOXProvider::where('is_active', true)
             ->with('primaryImage')
             ->ordered()
             ->get();
 
-        // Bump cache version because logic changed
         $productGroups = Cache::remember("home.productGroups.v3.$currency", 600, function () use ($currency) {
-            // Get counts by raw product_group_name, then aggregate into parent groups
             $rows = DBOXGame::query()
                 ->selectRaw('product_group_name, COUNT(*) as cnt')
                 ->where('is_active', true)
@@ -63,12 +60,11 @@ class HomeController extends Controller
             foreach ($rows as $r) {
                 $parentKey = self::toParentKey((string) $r->product_group_name);
                 if (!$parentKey) {
-                    continue; // ignore unknown groups (still appears in "All" provider list)
+                    continue;
                 }
                 $agg[$parentKey] += (int) $r->cnt;
             }
 
-            // Return in the exact order you want, only groups with > 0
             $out = [];
             foreach (['slots', 'casino', 'sport', 'lottery'] as $k) {
                 if (($agg[$k] ?? 0) > 0) {
@@ -136,18 +132,31 @@ class HomeController extends Controller
             ->limit(20)
             ->get();
 
-        $walletBalances = [];
+        $walletBalances = [
+            'main' => 0.0,
+            'chips' => 0.0,
+            'bonus' => 0.0,
+        ];
 
         if (auth()->check()) {
-            $wallets = auth()->user()->wallets()
-                ->whereIn('type', ['main', 'chips', 'bonus'])
+            $user = auth()->user();
+
+            $wallets = $user->wallets()
+                ->whereIn('type', ['main', 'chips'])
                 ->get()
                 ->keyBy('type');
+
+            $pendingBonus = (float) DepositRequest::query()
+                ->where('user_id', $user->id)
+                ->whereNotNull('promotion_id')
+                ->where('status', DepositRequest::STATUS_APPROVED)
+                ->where('bonus_status', 'in_progress')
+                ->sum('bonus_amount');
 
             $walletBalances = [
                 'main'  => (float) ($wallets->get('main')?->balance ?? 0),
                 'chips' => (float) ($wallets->get('chips')?->balance ?? 0),
-                'bonus' => (float) ($wallets->get('bonus')?->balance ?? 0),
+                'bonus' => (float) $pendingBonus,
             ];
         }
 
@@ -162,10 +171,6 @@ class HomeController extends Controller
         ]);
     }
 
-    /**
-     * Convert a game product_group_name into one of the 4 parent keys.
-     * Returns null if not mapped.
-     */
     private static function toParentKey(string $label): ?string
     {
         $child = self::slugKey($label);

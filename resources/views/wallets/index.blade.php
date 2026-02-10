@@ -222,8 +222,8 @@
             </div>
 
             @php
-              $inProgress = ($bonusRecords ?? collect())->filter(fn($r) => (int)($r->status ?? 0) === 0);
-              $done = ($bonusRecords ?? collect())->filter(fn($r) => (int)($r->status ?? 0) === 1);
+              $inProgress = ($bonusRecords ?? collect())->filter(fn($r) => ($r->bonus_status ?? '') === 'in_progress');
+              $done       = ($bonusRecords ?? collect())->filter(fn($r) => ($r->bonus_status ?? '') === 'done');
             @endphp
 
             {{-- PANEL: IN PROGRESS --}}
@@ -363,9 +363,7 @@
           @csrf
 
           <div class="tfTabs" style="margin-top:0; flex-wrap: wrap;">
-            <button class="tfTab is-active" type="button" data-it-option data-from="main" data-to="chips">Cash → Chips</button>
             <button class="tfTab" type="button" data-it-option data-from="chips" data-to="main">Chips → Cash</button>
-            <button class="tfTab" type="button" data-it-option data-from="bonus" data-to="chips">Bonus → Chips</button>
           </div>
 
           <input type="hidden" name="from" value="main" data-it-from>

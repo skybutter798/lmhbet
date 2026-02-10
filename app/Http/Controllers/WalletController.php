@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DepositRequest;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
 use Illuminate\Http\Request;
@@ -9,7 +10,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use App\Models\DepositRequest;
 
 class WalletController extends Controller
 {
@@ -17,8 +17,9 @@ class WalletController extends Controller
     {
         $user = auth()->user();
 
+        // Only real wallets you want to show/use
         $wallets = $user->wallets()
-            ->whereIn('type', ['main', 'chips', 'bonus'])
+            ->whereIn('type', ['main', 'chips'])
             ->get()
             ->keyBy('type');
 
@@ -32,11 +33,22 @@ class WalletController extends Controller
             ->limit(50)
             ->get();
 
+        // ✅ Pending bonus preparing to release
+        $pendingBonus = (float) DepositRequest::query()
+            ->where('user_id', $user->id)
+            ->whereNotNull('promotion_id')
+            ->where('status', DepositRequest::STATUS_APPROVED)
+            ->where('bonus_status', 'in_progress')
+            ->sum('bonus_amount');
+
         return view('wallets.index', [
             'title' => 'Wallet',
             'cash'  => $wallets->get('main')?->balance ?? 0,
             'chips' => $wallets->get('chips')?->balance ?? 0,
-            'bonus' => $wallets->get('bonus')?->balance ?? 0,
+
+            // now bonus = pending promo bonus, NOT wallet(type=bonus)
+            'bonus' => $pendingBonus,
+
             'currency' => $user->currency ?? 'MYR',
             'bonusRecords' => $bonusRecords,
         ]);
@@ -46,14 +58,15 @@ class WalletController extends Controller
      * ✅ Internal transfer only:
      * chips -> main
      * main  -> chips
-     * bonus -> chips
+     *
+     * (bonus wallet transfer removed because "bonus" is now pending promo display)
      */
     public function transferInternal(Request $request)
     {
         $user = $request->user();
 
         $data = $request->validate([
-            'from'   => ['required', 'in:main,chips,bonus'],
+            'from'   => ['required', 'in:main,chips'],
             'to'     => ['required', 'in:main,chips'],
             'amount' => ['required', 'numeric', 'min:0.01'],
         ]);
@@ -64,7 +77,6 @@ class WalletController extends Controller
         $allowed = [
             'chips:main',
             'main:chips',
-            'bonus:chips',
         ];
 
         if ($from === $to || !in_array("{$from}:{$to}", $allowed, true)) {

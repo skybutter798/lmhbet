@@ -4,6 +4,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Wallet;
+use App\Models\DepositRequest;
 use Illuminate\Http\Request;
 
 class WalletBalanceController extends Controller
@@ -29,6 +30,18 @@ class WalletBalanceController extends Controller
             ['user_id' => $user->id, 'type' => $type],
             ['balance' => '0', 'status' => Wallet::STATUS_ACTIVE]
         );
+    }
+
+    private function pendingBonus(Request $request): float
+    {
+        $user = $request->user();
+
+        return (float) DepositRequest::query()
+            ->where('user_id', $user->id)
+            ->whereNotNull('promotion_id')
+            ->where('status', DepositRequest::STATUS_APPROVED)
+            ->where('bonus_status', 'in_progress')
+            ->sum('bonus_amount');
     }
 
     public function chips(Request $request)
@@ -64,18 +77,18 @@ class WalletBalanceController extends Controller
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
-    // ✅ one endpoint for header (faster + consistent)
     public function all(Request $request)
     {
         $user = $request->user();
 
         $wMain  = $this->getWallet($request, Wallet::TYPE_MAIN);
         $wChips = $this->getWallet($request, Wallet::TYPE_CHIPS);
-        $wBonus = $this->getWallet($request, Wallet::TYPE_BONUS);
 
         $main  = $this->blcNum((string) $wMain->balance);
         $chips = $this->blcNum((string) $wChips->balance);
-        $bonus = $this->blcNum((string) $wBonus->balance);
+
+        // ✅ bonus from pending promo (NOT wallet bonus)
+        $bonus = $this->pendingBonus($request);
 
         return response()
             ->json([

@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
+
 use App\Models\WithdrawalRequest as WithdrawalRequestModel;
 use App\Models\Wallet;
+use App\Models\WithdrawalBankAccount;
 
 class WithdrawalController extends Controller
 {
@@ -25,18 +27,45 @@ class WithdrawalController extends Controller
 
         $currency = $user->currency ?? 'MYR';
 
-        $verifiedKyc = $user->kycSubmissions()
-            ->whereIn('status', ['approved', 'success'])
+        $banks = [
+            'Affin Bank',
+            'Agrobank',
+            'Alliance Bank',
+            'AmBank',
+            'Bank Islam',
+            'Bank Muamalat',
+            'Bank Rakyat',
+            'Bank Simpanan Nasional (BSN)',
+            'CIMB Bank',
+            'Citibank Malaysia',
+            'Hong Leong Bank',
+            'HSBC Bank Malaysia',
+            'Kuwait Finance House',
+            'Maybank',
+            'OCBC Bank Malaysia',
+            'Public Bank',
+            'RHB Bank',
+            'Standard Chartered Bank Malaysia',
+            'UOB Malaysia',
+        ];
+
+        $bankAccounts = $user->withdrawalBankAccounts()
             ->latest()
             ->get();
 
-        $today = now()->startOfDay();
+        $defaultBankAccount = null;
+        if ($user->default_withdrawal_bank_account_id) {
+            $defaultBankAccount = $bankAccounts->firstWhere('id', $user->default_withdrawal_bank_account_id)
+                ?: $user->withdrawalBankAccounts()
+                    ->where('id', $user->default_withdrawal_bank_account_id)
+                    ->first();
+        }
 
-        $todayHistory = WithdrawalRequestModel::query()
+        $history = WithdrawalRequestModel::query()
             ->where('user_id', $user->id)
-            ->where('created_at', '>=', $today)
             ->latest()
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
 
         return view('withdrawals.index', [
             'title' => 'Withdrawal',
@@ -46,8 +75,11 @@ class WithdrawalController extends Controller
             'bonus' => $bonus,
             'currency' => $currency,
 
-            'verifiedKyc' => $verifiedKyc,
-            'todayHistory' => $todayHistory,
+            'banks' => $banks,
+            'bankAccounts' => $bankAccounts,
+            'defaultBankAccount' => $defaultBankAccount,
+
+            'history' => $history,
 
             'minWithdraw' => 100,
             'maxWithdraw' => 99999999.99,
@@ -59,7 +91,6 @@ class WithdrawalController extends Controller
         $user = auth()->user();
         $currency = $user->currency ?? 'MYR';
 
-        // Normalize amount input (remove commas/spaces)
         $request->merge([
             'amount' => is_string($request->input('amount'))
                 ? str_replace([',', ' '], '', $request->input('amount'))
@@ -67,19 +98,18 @@ class WithdrawalController extends Controller
         ]);
 
         $data = $request->validate([
-            'kyc_submission_id' => ['required', 'integer'],
+            'bank_account_id' => ['required', 'integer'],
             'amount' => ['required', 'numeric', 'min:100', 'max:99999999.99'],
         ]);
 
-        // Must be verified KYC
-        $kyc = $user->kycSubmissions()
-            ->whereIn('status', ['approved', 'success'])
-            ->where('id', $data['kyc_submission_id'])
+        $bankAccount = WithdrawalBankAccount::query()
+            ->where('id', $data['bank_account_id'])
+            ->where('user_id', $user->id)
             ->first();
 
-        if (!$kyc) {
+        if (!$bankAccount) {
             return back()
-                ->withErrors(['withdraw' => 'No verified bank account found. Please complete verification first.'])
+                ->withErrors(['withdraw' => 'Invalid bank account selected.'])
                 ->withInput();
         }
 
@@ -93,9 +123,7 @@ class WithdrawalController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($user, $currency, $kyc, $amountCents, $amountStr) {
-
-                // LOCK cash wallet row (ONLY main/cash is withdrawable)
+            DB::transaction(function () use ($user, $currency, $bankAccount, $amountCents, $amountStr) {
                 $cashWallet = $user->wallets()
                     ->where('type', Wallet::TYPE_MAIN)
                     ->lockForUpdate()
@@ -111,20 +139,19 @@ class WithdrawalController extends Controller
                     throw new \RuntimeException('Insufficient cash balance.');
                 }
 
-                // Deduct immediately (hold in pending)
                 $newBalanceCents = $balanceCents - $amountCents;
                 $cashWallet->balance = $this->centsToMoney($newBalanceCents);
                 $cashWallet->save();
 
                 WithdrawalRequestModel::create([
                     'user_id' => $user->id,
-                    'kyc_submission_id' => $kyc->id,
+                    'bank_account_id' => $bankAccount->id,
                     'currency' => $currency,
-                    'amount' => $amountStr,   // stored as decimal:2 by casts
+                    'amount' => $amountStr,
                     'status' => 'pending',
                     'remarks' => null,
                 ]);
-            }, 3); // retry up to 3 times on deadlock
+            }, 3);
         } catch (\Throwable $e) {
             $msg = $e->getMessage();
 
@@ -142,9 +169,6 @@ class WithdrawalController extends Controller
         return back()->with('success', 'Withdrawal submitted.');
     }
 
-    /**
-     * Convert "1234.56" to cents (123456) without floats.
-     */
     private function moneyToCents(string $v): int
     {
         $s = trim($v);
@@ -169,9 +193,6 @@ class WithdrawalController extends Controller
         return $neg ? -$cents : $cents;
     }
 
-    /**
-     * Convert cents (123456) back to "1234.56".
-     */
     private function centsToMoney(int $cents): string
     {
         $neg = $cents < 0;

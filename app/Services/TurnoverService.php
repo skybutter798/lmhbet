@@ -15,65 +15,71 @@ class TurnoverService
     public function applySettledBet(BetRecord $bet): void
     {
         if (!$this->isSettled($bet)) return;
-
+    
         $stake = (float) $bet->stake_amount;
         if ($stake <= 0) return;
-
-        if (BonusTurnoverItem::where('bet_record_id', $bet->id)->exists()) {
-            return;
-        }
-
+    
         DB::transaction(function () use ($bet, $stake) {
-            $exists = BonusTurnoverItem::where('bet_record_id', $bet->id)->lockForUpdate()->exists();
-            if ($exists) return;
-
-            /** @var DepositRequest|null $bonus */
-            $bonus = DepositRequest::query()
+    
+            // lock + prevent running twice for same bet
+            // (if you allow multi-deposit split, you should add UNIQUE(deposit_request_id, bet_record_id))
+            $already = BonusTurnoverItem::where('bet_record_id', $bet->id)->lockForUpdate()->exists();
+            if ($already) return;
+    
+            $remainingStake = $stake;
+    
+            $bonuses = DepositRequest::query()
                 ->where('user_id', $bet->user_id)
                 ->where('status', DepositRequest::STATUS_APPROVED)
                 ->whereNotNull('promotion_id')
                 ->where('bonus_status', 'in_progress')
                 ->orderBy('paid_at')
                 ->lockForUpdate()
-                ->first();
-
-            if (!$bonus) return;
-
-            if ($bonus->paid_at && $bet->bet_at && $bet->bet_at->lt($bonus->paid_at)) {
-                return;
-            }
-
-            $promo = $bonus->promotion()->with(['dboxProviders:id,name'])->first();
-            if ($promo && $promo->relationLoaded('dboxProviders') && $promo->dboxProviders->count() > 0) {
-                $allowedNames = $promo->dboxProviders->pluck('name')->map(fn($x) => (string)$x)->all();
-                $betProv = (string) ($bet->provider ?? '');
-                if ($betProv === '' || !in_array($betProv, $allowedNames, true)) {
-                    return;
+                ->get();
+    
+            if ($bonuses->isEmpty()) return;
+    
+            foreach ($bonuses as $bonus) {
+                if ($remainingStake <= 0) break;
+    
+                if ($bonus->paid_at && $bet->bet_at && $bet->bet_at->lt($bonus->paid_at)) {
+                    continue;
                 }
-            }
-
-            $required = (float) ($bonus->turnover_required ?? 0);
-            $progress = (float) ($bonus->turnover_progress ?? 0);
-            if ($required <= 0) return;
-
-            $remaining = max(0, $required - $progress);
-            if ($remaining <= 0) {
+    
+                $promo = $bonus->promotion()->with(['dboxProviders:id,name'])->first();
+                if ($promo && $promo->relationLoaded('dboxProviders') && $promo->dboxProviders->count() > 0) {
+                    $allowedNames = $promo->dboxProviders->pluck('name')->map(fn($x) => (string)$x)->all();
+                    $betProv = (string) ($bet->provider ?? '');
+                    if ($betProv === '' || !in_array($betProv, $allowedNames, true)) {
+                        continue;
+                    }
+                }
+    
+                $required = (float) ($bonus->turnover_required ?? 0);
+                $progress = (float) ($bonus->turnover_progress ?? 0);
+                if ($required <= 0) continue;
+    
+                $need = max(0, $required - $progress);
+                if ($need <= 0) {
+                    $this->completeBonusIfNeeded($bonus);
+                    continue;
+                }
+    
+                $counted = min($remainingStake, $need);
+    
+                BonusTurnoverItem::create([
+                    'deposit_request_id' => $bonus->id,
+                    'bet_record_id' => $bet->id,
+                    'counted_amount' => number_format($counted, 2, '.', ''),
+                ]);
+    
+                $bonus->turnover_progress = number_format($progress + $counted, 2, '.', '');
+                $bonus->save();
+    
                 $this->completeBonusIfNeeded($bonus);
-                return;
+    
+                $remainingStake -= $counted;
             }
-
-            $counted = min($stake, $remaining);
-
-            BonusTurnoverItem::create([
-                'deposit_request_id' => $bonus->id,
-                'bet_record_id' => $bet->id,
-                'counted_amount' => number_format($counted, 2, '.', ''),
-            ]);
-
-            $bonus->turnover_progress = number_format($progress + $counted, 2, '.', '');
-            $bonus->save();
-
-            $this->completeBonusIfNeeded($bonus);
         });
     }
 

@@ -10,31 +10,15 @@
     Deposit Method <span class="req">*</span>
   </div>
 
-  <div class="dMethods" data-dep-methods>
-    @php $oldMethod = old('method', 'bank_transfer'); @endphp
-
-    <button class="dMethod {{ $oldMethod === 'bank_transfer' ? 'is-active' : '' }}"
-            type="button" data-method="bank_transfer">
-      <div class="dMethod__ico">🏦</div>
-      <div class="dMethod__txt">BANK<br>TRANSFER</div>
-    </button>
-
-    <button class="dMethod {{ $oldMethod === 'e_wallet' ? 'is-active' : '' }}"
-            type="button" data-method="e_wallet">
-      <div class="dMethod__ico">💳</div>
-      <div class="dMethod__txt">E-WALLET<br><small>(VPay)</small></div>
-    </button>
-
-    <button class="dMethod" type="button" disabled>
-      <div class="dMethod__ico">💳</div>
-      <div class="dMethod__txt">E-WALLET</div>
-    </button>
-
-    <button class="dMethod" type="button" disabled>
-      <div class="dMethod__ico">💳</div>
-      <div class="dMethod__txt">E-WALLET</div>
-    </button>
-  </div>
+    <div class="dMethods" data-dep-methods>
+      @php $oldMethod = old('method', 'e_wallet'); @endphp
+    
+      <button class="dMethod {{ $oldMethod === 'e_wallet' ? 'is-active' : '' }}"
+              type="button" data-method="e_wallet">
+        <div class="dMethod__ico">💳</div>
+        <div class="dMethod__txt">E-WALLET<br><small>(VPay)</small></div>
+      </button>
+    </div>
 
   {{-- hidden controls for JS --}}
   <input type="hidden" name="method" value="{{ $oldMethod }}" data-dep-method-input>
@@ -46,10 +30,10 @@
     <div class="dErr">{{ $message }}</div>
   @enderror
 
-  <div class="dRowHead">
+  {{--<div class="dRowHead">
     <div class="dTitle">Deposit Bank <span class="req">*</span></div>
     @error('bank_name') <div class="dErr">{{ $message }}</div> @enderror
-  </div>
+  </div>--}}
 
   <div class="dBanks" data-dep-banks data-visible-when="bank_transfer">
     @foreach($banks as $b)

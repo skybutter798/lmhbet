@@ -6,6 +6,9 @@ use Illuminate\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use App\Models\KycSubmission;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rules\Password;
 
 class ProfileController extends Controller
 {
@@ -219,5 +222,81 @@ class ProfileController extends Controller
         if ($len <= 2) return $value;
         if ($len <= 4) return mb_substr($value, 0, 1) . str_repeat('*', $len - 2) . mb_substr($value, -1);
         return mb_substr($value, 0, 2) . str_repeat('*', $len - 3) . mb_substr($value, -1);
+    }
+    
+        public function bankDetails(): View
+    {
+        $user = auth()->user();
+
+        // Using existing KYC submission as bank details source:
+        $latestApproved = $user->kycSubmissions()
+            ->where('status', KycSubmission::STATUS_APPROVED)
+            ->latest()
+            ->first();
+
+        $latestAny = $user->kycSubmissions()->latest()->first();
+
+        return view('profile.bank', [
+            'title' => 'Bank Details',
+            'latestApproved' => $latestApproved,
+            'latestAny' => $latestAny,
+        ]);
+    }
+
+    public function showPasswordForm(): View
+    {
+        return view('profile.password', [
+            'title' => 'Change Password',
+        ]);
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $user = auth()->user();
+
+        $data = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'confirmed', Password::defaults()],
+        ]);
+
+        $user->password = $data['password'];
+        $user->save();
+
+        return back()->with('success', 'Password updated.');
+    }
+
+    public function showPinForm(): View
+    {
+        return view('profile.pin', [
+            'title' => 'Change PIN',
+        ]);
+    }
+
+    public function updatePin(Request $request)
+    {
+        $user = auth()->user();
+        $hasPin = !empty($user->pin);
+
+        $data = $request->validate([
+            'current_pin' => [
+                $hasPin ? 'required' : 'nullable',
+                'string',
+                'max:16',
+                function ($attribute, $value, $fail) use ($user, $hasPin) {
+                    if (!$hasPin) return; // no current pin required if none set
+                    if (!Hash::check((string)$value, (string)$user->pin)) {
+                        $fail('Current PIN is incorrect.');
+                    }
+                }
+            ],
+            'pin' => ['required', 'string', 'regex:/^\d{4,6}$/', 'confirmed'],
+        ], [
+            'pin.regex' => 'PIN must be 4 to 6 digits.',
+        ]);
+
+        $user->pin = $data['pin']; // hashed by cast
+        $user->save();
+
+        return back()->with('success', 'PIN updated.');
     }
 }

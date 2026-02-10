@@ -1,4 +1,4 @@
-/* resources/js/account.js */
+/* public/js/account.js */
 (function () {
   'use strict';
 

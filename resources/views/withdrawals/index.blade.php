@@ -8,18 +8,19 @@
     $fmt = fn($v) => number_format((float)$v, 2, '.', ',');
     $u = auth()->user();
 
-    $hasAccount = isset($verifiedKyc) && $verifiedKyc->count() > 0;
+    $hasAccount = isset($bankAccounts) && $bankAccounts->count() > 0;
+
+    $defaultId = $defaultBankAccount?->id ?? null;
+
+    $selectedBankId = old('bank_account_id')
+      ?? ($defaultId ?: ($hasAccount ? $bankAccounts->first()->id : null));
   @endphp
 
   <main class="accPage">
 
-    {{-- =========================
-        MOBILE
-        ========================= --}}
     <section class="accMobile">
       <div class="wrap">
 
-        {{-- Mobile header + wallet --}}
         @include('partials.account_mobile_dashboard', [
           'currency' => $currency,
           'cash' => $cash,
@@ -28,7 +29,6 @@
           'fmt' => $fmt,
         ])
 
-        {{-- Withdrawal card --}}
         <div class="wdCard" data-withdraw>
           <div class="wdHead">
             <div class="wdTitle">Withdrawal</div>
@@ -46,15 +46,19 @@
           <form method="post" action="{{ route('withdraw.store') }}" class="wdForm">
             @csrf
 
-            <label class="wdLabel">Account Number <span class="req">*</span></label>
+            <label class="wdLabel">Bank Account <span class="req">*</span></label>
             <div class="wdSelectRow">
-              <select class="wdSelect" name="kyc_submission_id" {{ $hasAccount ? '' : 'disabled' }} required>
+              <select class="wdSelect" name="bank_account_id" {{ $hasAccount ? '' : 'disabled' }} required>
                 @if(!$hasAccount)
-                  <option selected>No verified bank account</option>
+                  <option selected>No bank account</option>
                 @else
-                  @foreach($verifiedKyc as $acc)
-                    <option value="{{ $acc->id }}" {{ (string)old('kyc_submission_id') === (string)$acc->id ? 'selected' : '' }}>
-                      {{ $acc->maskedAccountNumber() }} - {{ $acc->bank_name }}
+                  @foreach($bankAccounts as $acc)
+                    @php
+                      $isDefault = ((int)$defaultId === (int)$acc->id);
+                      $label = $acc->maskedAccountNumber() . ' - ' . $acc->bank_name . ($isDefault ? ' (Default)' : '');
+                    @endphp
+                    <option value="{{ $acc->id }}" {{ (string)$selectedBankId === (string)$acc->id ? 'selected' : '' }}>
+                      {{ $label }}
                     </option>
                   @endforeach
                 @endif
@@ -94,14 +98,13 @@
 
             @if(!$hasAccount)
               <div class="wdHint">
-                You need a verified bank account before withdrawing.
-                <a class="wdLink" href="{{ route('profile.index', ['m' => 'profile', 'kyc' => true]) }}">Go verify</a>
+                Add a bank account before withdrawing.
+                <a class="wdLink" href="{{ route('profile.bank') }}">Manage bank accounts</a>
               </div>
             @endif
           </form>
         </div>
 
-        {{-- Important Notice --}}
         <div class="wdNotice">
           <div class="wdNoticeHead">
             <div class="wdNoticeTitle">⚠ Important Notice</div>
@@ -116,18 +119,17 @@
           </div>
         </div>
 
-        {{-- History (Today) --}}
         <div class="wdHistory">
-          <div class="wdHistoryTitle">🕘 Withdrawal History (Today)</div>
+          <div class="wdHistoryTitle">🕘 Withdrawal History</div>
           <div class="wdHistorySub">Transaction</div>
 
-          @if(isset($todayHistory) && $todayHistory->count())
+          @if(isset($history) && $history->count())
             <div class="wdHistList">
-              @foreach($todayHistory as $row)
+              @foreach($history as $row)
                 <div class="wdHistRow">
                   <div class="wdHistLeft">
                     <div class="wdHistAmt">{{ $currency }} {{ $fmt($row->amount) }}</div>
-                    <div class="wdHistMeta">{{ $row->created_at->format('H:i') }}</div>
+                    <div class="wdHistMeta">{{ $row->created_at->format('Y-m-d H:i') }}</div>
                   </div>
                   <div class="wdHistRight">
                     <span class="wdStatus wdStatus--{{ $row->status }}">{{ ucfirst($row->status) }}</span>
@@ -135,11 +137,15 @@
                 </div>
               @endforeach
             </div>
+
+            <div class="wdPagination">
+              {{ $history->links() }}
+            </div>
           @else
             <div class="wdEmpty">
               <div class="wdEmptyIco">📄</div>
               <div class="wdEmptyTitle">No Data</div>
-              <div class="wdEmptySub">No items found. Please try a different search.</div>
+              <div class="wdEmptySub">No items found.</div>
             </div>
           @endif
         </div>
@@ -147,9 +153,6 @@
       </div>
     </section>
 
-    {{-- =========================
-        DESKTOP
-        ========================= --}}
     <div class="wrap accGrid accDesktop">
       @include('partials.account_sidebar', ['active' => 'funds', 'activeSub' => 'withdraw'])
 
@@ -192,14 +195,18 @@
               <form method="post" action="{{ route('withdraw.store') }}" class="wdForm">
                 @csrf
 
-                <label class="wdLabel">Account Number <span class="req">*</span></label>
-                <select class="wdSelect" name="kyc_submission_id" {{ $hasAccount ? '' : 'disabled' }} required>
+                <label class="wdLabel">Bank Account <span class="req">*</span></label>
+                <select class="wdSelect" name="bank_account_id" {{ $hasAccount ? '' : 'disabled' }} required>
                   @if(!$hasAccount)
-                    <option selected>No verified bank account</option>
+                    <option selected>No bank account</option>
                   @else
-                    @foreach($verifiedKyc as $acc)
-                      <option value="{{ $acc->id }}" {{ (string)old('kyc_submission_id') === (string)$acc->id ? 'selected' : '' }}>
-                        {{ $acc->maskedAccountNumber() }} - {{ $acc->bank_name }}
+                    @foreach($bankAccounts as $acc)
+                      @php
+                        $isDefault = ((int)$defaultId === (int)$acc->id);
+                        $label = $acc->maskedAccountNumber() . ' - ' . $acc->bank_name . ($isDefault ? ' (Default)' : '');
+                      @endphp
+                      <option value="{{ $acc->id }}" {{ (string)$selectedBankId === (string)$acc->id ? 'selected' : '' }}>
+                        {{ $label }}
                       </option>
                     @endforeach
                   @endif
@@ -236,8 +243,8 @@
 
                 @if(!$hasAccount)
                   <div class="wdHint">
-                    You need a verified bank account before withdrawing.
-                    <a class="wdLink" href="{{ route('profile.index', ['kyc' => true]) }}">Go verify</a>
+                    Add a bank account before withdrawing.
+                    <a class="wdLink" href="{{ route('profile.bank') }}">Manage bank accounts</a>
                   </div>
                 @endif
               </form>
@@ -259,12 +266,12 @@
           </div>
 
           <div class="wdHistory wdHistory--desk">
-            <div class="wdHistoryTitle">🕘 Withdrawal History (Today)</div>
+            <div class="wdHistoryTitle">🕘 Withdrawal History</div>
             <div class="wdHistorySub">Transaction</div>
 
-            @if(isset($todayHistory) && $todayHistory->count())
+            @if(isset($history) && $history->count())
               <div class="wdHistList">
-                @foreach($todayHistory as $row)
+                @foreach($history as $row)
                   <div class="wdHistRow">
                     <div class="wdHistLeft">
                       <div class="wdHistAmt">{{ $currency }} {{ $fmt($row->amount) }}</div>
@@ -276,11 +283,15 @@
                   </div>
                 @endforeach
               </div>
+
+              <div class="wdPagination">
+                {{ $history->links() }}
+              </div>
             @else
               <div class="wdEmpty">
                 <div class="wdEmptyIco">📄</div>
                 <div class="wdEmptyTitle">No Data</div>
-                <div class="wdEmptySub">No items found. Please try a different search.</div>
+                <div class="wdEmptySub">No items found.</div>
               </div>
             @endif
           </div>
@@ -289,8 +300,15 @@
       </section>
     </div>
 
-    {{-- Add Account Modal (just link to KYC) --}}
-    @include('partials.withdraw_add_account_modal')
+    @include('partials.account_withdraw_add_account_modal', ['banks' => $banks])
+
+    @if ($errors->any() && ($errors->has('bank_name') || $errors->has('account_holder_name') || $errors->has('account_number')))
+      <script>
+        (function () {
+          window.__OPEN_PROFILE_MODAL__ = 'withdrawAddAccount';
+        })();
+      </script>
+    @endif
 
   </main>
 @endsection

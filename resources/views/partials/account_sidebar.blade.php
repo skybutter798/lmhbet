@@ -51,11 +51,19 @@
           <span class="accNav__chev">›</span>
         </div>
 
-        <a class="accNav__link {{ $active==='profile' && $activeSub==='my_profile' ? 'is-active' : '' }}" href="{{ route('profile.index') }}">My Profile</a>
-        <a class="accNav__link" href="#">Bank Details</a>
+        <a class="accNav__link {{ $active==='profile' && $activeSub==='my_profile' ? 'is-active' : '' }}"
+           href="{{ route('profile.index') }}">My Profile</a>
+        
+        <a class="accNav__link {{ $active==='profile' && $activeSub==='bank_details' ? 'is-active' : '' }}"
+           href="{{ route('profile.bank') }}">Bank Details</a>
+        
         <a class="accNav__link" href="#">Message</a>
-        <a class="accNav__link" href="#">Change Password</a>
-        <a class="accNav__link" href="#">Change PIN</a>
+        
+        <a class="accNav__link {{ $active==='profile' && $activeSub==='change_password' ? 'is-active' : '' }}"
+           href="{{ route('profile.password.form') }}">Change Password</a>
+        
+        <a class="accNav__link {{ $active==='profile' && $activeSub==='change_pin' ? 'is-active' : '' }}"
+           href="{{ route('profile.pin.form') }}">Change PIN</a>
       </div>
 
       {{-- HISTORY (dropdown) --}}

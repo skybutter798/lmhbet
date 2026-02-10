@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\KycSubmission;
 use App\Models\KycProfile;
+use App\Models\WithdrawalBankAccount;
 use App\Support\AdminAudit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -51,8 +52,39 @@ class AdminKycController extends Controller
                 ]
             );
 
+            // ✅ SYNC APPROVED KYC BANK INTO WITHDRAWAL BANK ACCOUNTS
+            $user = $submission->user()->lockForUpdate()->first();
+
+            $acctNo = (string) $submission->account_number;
+            $last4 = strlen($acctNo) >= 4 ? substr($acctNo, -4) : $acctNo;
+
+            // Prevent duplicates (bank + last4 + holder)
+            $existing = WithdrawalBankAccount::query()
+                ->where('user_id', $user->id)
+                ->where('bank_name', $submission->bank_name)
+                ->where('account_last4', $last4)
+                ->where('account_holder_name', $submission->account_holder_name)
+                ->first();
+
+            if (!$existing) {
+                $existing = WithdrawalBankAccount::create([
+                    'user_id' => $user->id,
+                    'bank_name' => $submission->bank_name,
+                    'account_holder_name' => $submission->account_holder_name,
+                    'account_number' => $acctNo,      // encrypted cast in model
+                    'account_last4' => $last4,
+                ]);
+            }
+
+            // Set default if none exists
+            if (!$user->default_withdrawal_bank_account_id) {
+                $user->default_withdrawal_bank_account_id = $existing->id;
+                $user->save();
+            }
+
             AdminAudit::log('kyc.approve', $submission->user_id, 'kyc_submissions', $submission->id, [
                 'submission_id' => $submission->id,
+                'synced_bank_account_id' => $existing->id,
             ]);
 
             return response()->json(['ok' => true]);

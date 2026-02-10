@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\WithdrawalBankAccount;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class User extends Authenticatable
 {
@@ -38,6 +40,7 @@ class User extends Authenticatable
             'two_factor_enabled' => 'boolean',
             'is_active' => 'boolean',
             'password' => 'hashed',
+            'pin' => 'hashed',
         ];
     }
     
@@ -120,4 +123,13 @@ class User extends Authenticatable
         return $this->hasMany(DepositRequest::class);
     }
 
+    public function withdrawalBankAccounts(): HasMany
+    {
+        return $this->hasMany(WithdrawalBankAccount::class);
+    }
+    
+    public function defaultWithdrawalBankAccount(): BelongsTo
+    {
+        return $this->belongsTo(WithdrawalBankAccount::class, 'default_withdrawal_bank_account_id');
+    }
 }

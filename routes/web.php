@@ -21,6 +21,7 @@ use App\Http\Controllers\DBOXImgUploadController;
 use App\Http\Controllers\Admin\DBOXGameImgController;
 use App\Http\Controllers\Admin\DBOXProviderImgController;
 use App\Http\Controllers\WalletBalanceController;
+use App\Http\Controllers\WithdrawalBankAccountController;
 
 use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\AdminDashboardController;
@@ -98,6 +99,33 @@ Route::middleware('auth')->group(function () {
         
     Route::get('/wallet/bonus/records', [WalletBonusController::class, 'records'])
         ->name('wallet.bonus.records');
+        
+    // Bank Details + Security
+    Route::get('/bank-details', [ProfileController::class, 'bankDetails'])
+        ->name('profile.bank');
+
+    Route::get('/security/password', [ProfileController::class, 'showPasswordForm'])
+        ->name('profile.password.form');
+    Route::post('/security/password', [ProfileController::class, 'updatePassword'])
+        ->name('profile.password.update');
+
+    Route::get('/security/pin', [ProfileController::class, 'showPinForm'])
+        ->name('profile.pin.form');
+    Route::post('/security/pin', [ProfileController::class, 'updatePin'])
+        ->name('profile.pin.update');
+        
+    // Bank Details (Withdrawal Accounts)
+    Route::get('/bank-details', [WithdrawalBankAccountController::class, 'index'])
+        ->name('profile.bank');
+    
+    Route::post('/bank-details', [WithdrawalBankAccountController::class, 'store'])
+        ->name('profile.bank.store');
+    
+    Route::post('/bank-details/{bankAccount}/default', [WithdrawalBankAccountController::class, 'setDefault'])
+        ->name('profile.bank.default');
+    
+    Route::delete('/bank-details/{bankAccount}', [WithdrawalBankAccountController::class, 'destroy'])
+        ->name('profile.bank.destroy');
 });
 
 Route::get('/games', [GamesController::class, 'index'])->name('games.index');

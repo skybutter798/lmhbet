@@ -1,6 +1,5 @@
 {{-- /home/lmh/app/resources/views/partials/header.blade.php --}}
 @php
-  // ✅ prevent "undefined variable $walletBalances" on pages that don't pass it
   $walletBalances = $walletBalances ?? [];
 
   $cash  = (float) ($walletBalances['main']  ?? 0);
@@ -15,7 +14,6 @@
 <header class="topbar">
   <div class="wrap topbar__inner">
 
-    {{-- ✅ MOBILE: hamburger --}}
     <button class="mBurger" type="button" aria-label="Open menu" data-mdrawer-open>
       <span class="mBurger__bar"></span>
       <span class="mBurger__bar"></span>
@@ -27,7 +25,6 @@
       <span class="brand__name">LUCKY MONEY HOUSE</span>
     </a>
 
-    {{-- ✅ DESKTOP --}}
     <div class="topbar__right topbar__right--desktop">
       @guest
         <button class="link linkBtn" type="button" data-open-modal="login">Login</button>
@@ -37,7 +34,6 @@
           <button class="icoBtn" type="button" aria-label="Account" data-user-menu-btn>👤</button>
           <button class="icoBtn" type="button" aria-label="Message">✉️</button>
 
-          {{-- ✅ LIVE hooks --}}
           <div class="walletBtn" data-wallet-menu-btn data-wallet-live>
             <div class="walletBtn__top">
               <span class="walletBtn__label">Wallet ({{ auth()->user()->currency ?? 'MYR' }})</span>
@@ -135,7 +131,6 @@
   </div>
 </header>
 
-{{-- ✅ MOBILE DRAWER --}}
 <div class="mDrawer" id="mDrawer" hidden aria-hidden="true">
   <div class="mDrawer__backdrop" data-mdrawer-close></div>
 

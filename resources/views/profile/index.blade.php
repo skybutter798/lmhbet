@@ -146,17 +146,17 @@
               <span class="mTile__txt">Message</span>
             </a>
 
-            <a class="mTile" href="#">
+            <a class="mTile" href="{{ route('profile.bank') }}">
               <span class="mTile__ico">🏦</span>
               <span class="mTile__txt">Bank</span>
             </a>
-
-            <a class="mTile" href="#">
+            
+            <a class="mTile" href="{{ route('profile.pin.form') }}">
               <span class="mTile__ico">🔐</span>
               <span class="mTile__txt">Change PIN</span>
             </a>
-
-            <a class="mTile" href="#">
+            
+            <a class="mTile" href="{{ route('profile.password.form') }}">
               <span class="mTile__ico">🔑</span>
               <span class="mTile__txt">Change Password</span>
             </a>
