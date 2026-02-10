@@ -419,6 +419,12 @@
         <span class="l-sb-icon">💳</span>
         <span class="l-sb-text">Wallet Transactions</span>
       </a>
+      
+      <a class="l-sb-link {{ request()->routeIs('admin.support.*') ? 'is-active' : '' }}"
+         href="{{ route('admin.support.index') }}">
+        <span class="l-sb-icon">🎧</span>
+        <span class="l-sb-text">Support Ticket</span>
+      </a>
     </nav>
   </div>
 

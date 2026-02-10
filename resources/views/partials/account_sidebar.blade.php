@@ -57,7 +57,8 @@
         <a class="accNav__link {{ $active==='profile' && $activeSub==='bank_details' ? 'is-active' : '' }}"
            href="{{ route('profile.bank') }}">Bank Details</a>
         
-        <a class="accNav__link" href="#">Message</a>
+        <a class="accNav__link {{ request()->routeIs('support.*') ? 'is-active' : '' }}"
+            href="{{ route('support.index') }}">Message</a>
         
         <a class="accNav__link {{ $active==='profile' && $activeSub==='change_password' ? 'is-active' : '' }}"
            href="{{ route('profile.password.form') }}">Change Password</a>

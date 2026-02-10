@@ -519,4 +519,47 @@ document.addEventListener("DOMContentLoaded", () => {
 
     start();
   })();
+  
+    (() => {
+      const openBtn = document.querySelector("[data-open-new-ticket]");
+      const modal = document.getElementById("newTicketModal");
+      if (!modal) return;
+    
+      const open = () => {
+        modal.hidden = false;
+        modal.classList.add("is-open");
+        modal.setAttribute("aria-hidden", "false");
+        document.body.classList.add("modal-open");
+      };
+    
+      const close = () => {
+        modal.classList.remove("is-open");
+        modal.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("modal-open");
+        setTimeout(() => {
+          if (!modal.classList.contains("is-open")) modal.hidden = true;
+        }, 200);
+      };
+    
+      openBtn?.addEventListener("click", (e) => {
+        e.preventDefault();
+        open();
+      });
+    
+      modal.querySelectorAll("[data-close-new-ticket]").forEach((el) => {
+        el.addEventListener("click", (e) => {
+          e.preventDefault();
+          close();
+        });
+      });
+    
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !modal.hidden) close();
+      });
+    
+      if (window.__OPEN_NEW_TICKET__) {
+        open();
+        window.__OPEN_NEW_TICKET__ = null;
+      }
+    })();
 });

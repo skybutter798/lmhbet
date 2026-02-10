@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\DBOXGameImgController;
 use App\Http\Controllers\Admin\DBOXProviderImgController;
 use App\Http\Controllers\WalletBalanceController;
 use App\Http\Controllers\WithdrawalBankAccountController;
+use App\Http\Controllers\Support\SupportTicketController;
 
 use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\AdminDashboardController;
@@ -35,6 +36,8 @@ use App\Http\Controllers\Admin\AdminDBOXGameSortController;
 use App\Http\Controllers\Admin\AdminDBOXImgUploadController;
 use App\Http\Controllers\Admin\AdminProfileController;
 use App\Http\Controllers\WalletBonusController;
+use App\Http\Controllers\Admin\AdminSupportController;
+
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
@@ -126,6 +129,11 @@ Route::middleware('auth')->group(function () {
     
     Route::delete('/bank-details/{bankAccount}', [WithdrawalBankAccountController::class, 'destroy'])
         ->name('profile.bank.destroy');
+        
+    Route::get('/message', [SupportTicketController::class, 'index'])->name('support.index');
+    Route::post('/message', [SupportTicketController::class, 'store'])->name('support.store');
+    Route::get('/message/{ticket}', [SupportTicketController::class, 'show'])->name('support.show');
+    Route::post('/message/{ticket}/reply', [SupportTicketController::class, 'reply'])->name('support.reply');
 });
 
 Route::get('/games', [GamesController::class, 'index'])->name('games.index');
@@ -263,5 +271,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::post('/profile/2fa', [AdminProfileController::class, 'updateTwoFaSecret'])
             ->name('profile.2fa.update');
+        
+        Route::get('/support', [AdminSupportController::class, 'index'])->name('support.index');
+        Route::get('/support/{ticket}', [AdminSupportController::class, 'show'])->name('support.show');
+        Route::post('/support/{ticket}/reply', [AdminSupportController::class, 'reply'])->name('support.reply');
+        Route::post('/support/{ticket}/close', [AdminSupportController::class, 'close'])->name('support.close');
+        Route::post('/support/{ticket}/reopen', [AdminSupportController::class, 'reopen'])->name('support.reopen');
     });
 });
