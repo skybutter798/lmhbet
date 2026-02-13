@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'dbox.sig' => \App\Http\Middleware\VerifyDBOXSignature::class,
             'dbox.inlog' => \App\Http\Middleware\LogDBOXIncoming::class,
             'admin.auth' => \App\Http\Middleware\AdminAuth::class,
+            'log.incoming' => \App\Http\Middleware\LogIncomingRequests::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

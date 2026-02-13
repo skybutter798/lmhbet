@@ -11,10 +11,8 @@ use App\Http\Controllers\Api\V1\DBOXCmoController;
 use App\Http\Controllers\Api\V1\DBOXTrfController;
 use App\Http\Controllers\Api\V1\DBOXSeamlessWalletController;
 use App\Http\Controllers\Api\V1\VPayNotifyController;
-
-Route::prefix('v1')->group(function () {
-    Route::post('/vpay/notify', [VPayNotifyController::class, 'handle']);
-});
+use App\Http\Controllers\Api\V1\DBOXSeamlessWalletExtController;
+use App\Http\Controllers\Api\V1\WinPayNotifyController;
 
 Route::prefix('v1')->group(function () {
     Route::get('/status', [StatusController::class, 'status']);
@@ -30,6 +28,12 @@ Route::prefix('v1')->group(function () {
     // keep if you still use TRF APIs elsewhere
     Route::post('/dbox/trf/deposit', [DBOXTrfController::class, 'deposit']);
     Route::post('/dbox/trf/withdraw', [DBOXTrfController::class, 'withdraw']);
+    
+    Route::post('/winpay/notify', [WinPayNotifyController::class, 'handle']);
+    
+    Route::post('/payments/winpay/notify', [\App\Http\Controllers\Api\V1\WinPayNotifyController::class, 'handle'])
+        ->middleware('log.incoming')
+        ->name('winpay.notify');
 });
 
 /*

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 use App\Services\VPayClient;
+use App\Services\Payments\WinPayClient;
 use Illuminate\Support\Facades\Log;
 
 class DepositController extends Controller
@@ -42,6 +43,42 @@ class DepositController extends Controller
             'UOB Bank',
             'OCBC Bank',
             'Standard Chartered',
+        ];
+
+        $winpayFpxBanks = [
+            'Public Bank',
+            'Bank Rakyat',
+            'Alliance Bank',
+            'Maybank2U',
+            'Bank Islam',
+            'Bank Muamalat',
+            'Kuwait Finance House',
+            'Affin Bank',
+            'RHB Bank',
+            'OCBC Bank',
+            'Standard Chartered',
+            'Hong Leong Bank',
+            'Maybank2E',
+            'UOB Bank',
+            'CIMB Clicks',
+            'AmBank',
+            'Bank Simpanan Nasional',
+            'HSBC Bank',
+            'Bank of China',
+            'Bank Pertanian Malaysia Berhad (Agrobank)',
+        ];
+
+        $winpayEwallets = [
+            'Boost',
+            'GrabPay',
+            'Touch N Go',
+        ];
+
+        // ✅ VPAY trade_code list (for UI)
+        $vpayTradeCodes = [
+            '36' => 'DUITNOW',
+            '24' => 'P2P Online Banking',
+            '40' => 'TNG',
         ];
 
         $today = now()->startOfDay();
@@ -78,6 +115,12 @@ class DepositController extends Controller
             'banks'      => $banks,
             'history'    => $history,
             'promotions' => $promotions,
+
+            'winpayFpxBanks' => $winpayFpxBanks,
+            'winpayEwallets' => $winpayEwallets,
+
+            // ✅ pass to blade
+            'vpayTradeCodes' => $vpayTradeCodes,
         ]);
     }
 
@@ -87,22 +130,51 @@ class DepositController extends Controller
 
         $data = $request->validate([
             'method'       => ['required', 'string', 'in:bank_transfer,e_wallet'],
+            'provider'     => ['nullable', 'string', 'in:vpay,winpay'],
+            'winpay_type'  => ['nullable', 'string', 'in:01,03'],
             'bank_name'    => ['nullable', 'string', 'max:80'],
             'amount'       => ['required', 'numeric', 'min:20', 'max:20000'],
             'promotion_id' => ['nullable', 'integer', 'exists:promotions,id'],
+
+            // ✅ NEW: vpay channel selector
+            'trade_code'   => ['nullable', 'string', 'in:24,36,37,38,40'],
         ]);
+
+        $provider = $data['provider'] ?? 'vpay';
 
         if ($data['method'] === DepositRequest::METHOD_BANK_TRANSFER && empty($data['bank_name'])) {
             return back()->withErrors(['bank_name' => 'Please select a bank.'])->withInput();
         }
 
-        // correlation id for tracing 1 flow across logs
+        if ($data['method'] === DepositRequest::METHOD_E_WALLET) {
+            if ($provider === 'winpay') {
+                if (empty($data['winpay_type'])) {
+                    return back()->withErrors(['method' => 'Please select WinPay type.'])->withInput();
+                }
+                if (empty($data['bank_name'])) {
+                    return back()->withErrors(['bank_name' => 'Please select a bank / wallet.'])->withInput();
+                }
+            }
+
+            // ✅ NEW: if provider=vpay, ensure trade_code exists (default allowed)
+            if ($provider === 'vpay') {
+                $data['trade_code'] = (string)($data['trade_code'] ?? '36');
+                $allowed = ['24','36','37','38','40'];
+                if (!in_array($data['trade_code'], $allowed, true)) {
+                    return back()->withErrors(['amount' => 'Invalid VPAY channel selected.'])->withInput();
+                }
+            }
+        }
+
         $cid = 'dep_' . now()->format('YmdHis') . '_' . substr(bin2hex(random_bytes(6)), 0, 12);
 
         Log::channel('deposit_daily')->info('Deposit store: request received', [
             'cid' => $cid,
             'user_id' => $user->id,
             'method' => $data['method'],
+            'provider' => $provider,
+            'winpay_type' => $data['winpay_type'] ?? null,
+            'trade_code' => $data['trade_code'] ?? null, // ✅ log it
             'amount' => $data['amount'],
             'currency' => $user->currency ?? 'MYR',
             'bank_name' => $data['bank_name'] ?? null,
@@ -111,14 +183,14 @@ class DepositController extends Controller
             'ua' => $request->userAgent(),
         ]);
 
-        // your internal reference
         $ref = 'TP_WLA_' . now()->format('ymdHis') . '_' . substr(bin2hex(random_bytes(4)), 0, 8);
 
-        // create deposit request first
         $payload = [
             'currency'   => $user->currency ?? 'MYR',
             'method'     => $data['method'],
-            'bank_name'  => $data['method'] === DepositRequest::METHOD_BANK_TRANSFER ? $data['bank_name'] : null,
+            'bank_name'  => $data['method'] === DepositRequest::METHOD_BANK_TRANSFER
+                ? ($data['bank_name'] ?? null)
+                : ($data['bank_name'] ?? null),
             'amount'     => $data['amount'],
             'status'     => DepositRequest::STATUS_PENDING,
             'reference'  => $ref,
@@ -126,6 +198,11 @@ class DepositController extends Controller
 
         if (Schema::hasColumn('deposit_requests', 'promotion_id')) {
             $payload['promotion_id'] = $data['promotion_id'] ?? null;
+        }
+
+        // ✅ NEW: store chosen VPAY trade_code when provider=vpay
+        if ($provider === 'vpay' && Schema::hasColumn('deposit_requests', 'trade_code')) {
+            $payload['trade_code'] = (string)($data['trade_code'] ?? '36');
         }
 
         /** @var \App\Models\DepositRequest $dep */
@@ -141,7 +218,6 @@ class DepositController extends Controller
             'currency' => $dep->currency,
         ]);
 
-        // bank transfer = done
         if ($data['method'] === DepositRequest::METHOD_BANK_TRANSFER) {
             Log::channel('deposit_daily')->info('Deposit bank_transfer: submitted', [
                 'cid' => $cid,
@@ -153,12 +229,118 @@ class DepositController extends Controller
             return back()->with('success', 'Deposit request submitted. Status: In Progress.');
         }
 
-        // e_wallet => create VPay order
+        // =========================
+        // E-WALLET (WinPay / VPay)
+        // =========================
+
+        if ($provider === 'winpay') {
+            try {
+                /** @var WinPayClient $winpay */
+                $winpay = app(WinPayClient::class);
+
+                $type = (string) ($data['winpay_type'] ?? '01');
+
+                $limits = (array) config('winpay.limits', []);
+                if (isset($limits[$type])) {
+                    $min = (float) $limits[$type]['min'];
+                    $max = (float) $limits[$type]['max'];
+                    if ((float) $data['amount'] < $min || (float) $data['amount'] > $max) {
+                        return back()->withErrors([
+                            'amount' => "Amount must be between {$min} and {$max} for WinPay type {$type}.",
+                        ])->withInput();
+                    }
+                }
+
+                $depositorName = strtoupper($user->name ?? 'CUSTOMER');
+
+                $winPayload = [
+                    'bill_number' => $ref,
+                    'type' => $type,
+                    'amount' => (float) $data['amount'],
+                    'depositor_name' => $depositorName,
+                    'bank_name' => (string) ($data['bank_name'] ?? ''),
+                ];
+
+                Log::channel('deposit_daily')->info('WINPAY deposit: sending', [
+                    'cid' => $cid,
+                    'deposit_id' => $dep->id,
+                    'ref' => $ref,
+                    'payload' => $winPayload,
+                ]);
+
+                $resp = $winpay->createDeposit($winPayload);
+
+                Log::channel('deposit_daily')->info('WINPAY deposit: response', [
+                    'cid' => $cid,
+                    'deposit_id' => $dep->id,
+                    'ref' => $ref,
+                    'resp_code' => $resp['code'] ?? null,
+                    'resp_msg' => $resp['message'] ?? null,
+                    'resp' => $resp,
+                ]);
+
+                if ((int) ($resp['code'] ?? -1) !== 0) {
+                    Log::channel('deposit_daily')->warning('WINPAY deposit failed', [
+                        'cid' => $cid,
+                        'deposit_id' => $dep->id,
+                        'ref' => $ref,
+                        'user_id' => $user->id,
+                        'resp' => $resp,
+                    ]);
+
+                    return back()->withErrors([
+                        'amount' => 'WinPay gateway error: ' . (string) ($resp['message'] ?? 'Unknown'),
+                    ])->withInput();
+                }
+
+                $dep->provider = 'winpay';
+                $dep->out_trade_no = $ref;
+                $dep->trade_no = $resp['trade_no'] ?? null;
+                $dep->pay_url = $resp['url'] ?? null;
+                $dep->trade_code = $type; // 01/03
+                $dep->provider_payload = $resp;
+                $dep->save();
+
+                if (!$dep->pay_url) {
+                    Log::channel('deposit_daily')->warning('WINPAY response missing pay_url', [
+                        'cid' => $cid,
+                        'deposit_id' => $dep->id,
+                        'ref' => $ref,
+                        'resp' => $resp,
+                    ]);
+
+                    return back()->withErrors(['amount' => 'WinPay payment url missing.'])->withInput();
+                }
+
+                Log::channel('deposit_daily')->info('Redirecting user to WINPAY pay_url', [
+                    'cid' => $cid,
+                    'deposit_id' => $dep->id,
+                    'ref' => $ref,
+                    'pay_url' => $dep->pay_url,
+                ]);
+
+                return redirect()->away($dep->pay_url);
+
+            } catch (\Throwable $e) {
+                Log::channel('deposit_daily')->error('WINPAY deposit exception', [
+                    'cid' => $cid,
+                    'deposit_id' => $dep->id ?? null,
+                    'ref' => $ref ?? null,
+                    'user_id' => $user->id,
+                    'err' => $e->getMessage(),
+                    'ex' => get_class($e),
+                ]);
+
+                return back()->withErrors(['amount' => 'WinPay gateway exception. Please try again.'])->withInput();
+            }
+        }
+
+        // default VPAY
         try {
             $client = VPayClient::make();
 
-            // choose a trade_code. Example: 36 = DUITNOW
-            $tradeCode = '36';
+            // ✅ use requested trade_code (default 36)
+            $tradeCode = (string)($data['trade_code'] ?? $dep->trade_code ?? '36');
 
             $vpayPayload = [
                 'title'        => 'Deposit',
@@ -170,7 +352,6 @@ class DepositController extends Controller
                 'callback_url' => config('services.vpay.callback_url'),
             ];
 
-            // log what we're sending (safe fields)
             Log::channel('deposit_daily')->info('VPAY unifiedOrder: sending', [
                 'cid' => $cid,
                 'deposit_id' => $dep->id,
@@ -209,8 +390,8 @@ class DepositController extends Controller
             $dep->out_trade_no = $ref;
             $dep->trade_no = $dataObj['trade_no'] ?? null;
             $dep->pay_url = $dataObj['pay_url'] ?? null;
-            $dep->trade_code = $tradeCode;
-            $dep->provider_payload = $resp; // consider masking if it contains sensitive data
+            $dep->trade_code = $tradeCode; // ✅ keep the selected one
+            $dep->provider_payload = $resp;
             $dep->save();
 
             Log::channel('deposit_daily')->info('Deposit updated with VPAY fields', [
@@ -240,7 +421,6 @@ class DepositController extends Controller
                 'pay_url' => $dep->pay_url,
             ]);
 
-            // Redirect user to cashier/payment URL
             return redirect()->away($dep->pay_url);
 
         } catch (\Throwable $e) {

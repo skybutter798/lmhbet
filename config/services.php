@@ -59,5 +59,21 @@ return [
         'callback_url'=> env('VPAY_CALLBACK_URL'),
         'callback_ip' => env('VPAY_CALLBACK_IP', '43.217.190.244'),
     ],
+    
+    'winpay' => [
+        'base_url'    => env('WINPAY_BASE_URL', ''),   // https://winpay.cash
+        'pay_path'    => env('WINPAY_PAY_PATH', ''),   // example: /api/v3/deposit  (or the exact pay endpoint they require)
+        'query_path'  => env('WINPAY_QUERY_PATH', ''), // example: /api/v3/deposit/query
+        'client_id'   => env('WINPAY_CLIENT_ID', ''),  // 商户号 / client_id
+        'api_key'     => env('WINPAY_API_KEY', ''),    // APIKEY
+        'notify_url'  => env('WINPAY_NOTIFY_URL', ''),
+        'return_url'  => env('WINPAY_RETURN_URL', ''),
+        'timeout'     => (int) env('WINPAY_TIMEOUT', 20),
+        'debug'       => (bool) env('WINPAY_DEBUG', false),
+        'log_channel' => env('WINPAY_LOG_CHANNEL', 'winpay_daily'),
+        'sign_delimiter' => env('WINPAY_SIGN_DELIMITER', '&'),
+        'callback_ip' => env('WINPAY_CALLBACK_IP', '43.128.238.109'),
+    ],
+
 
 ];

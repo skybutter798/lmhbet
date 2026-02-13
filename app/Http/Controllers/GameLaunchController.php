@@ -7,6 +7,7 @@ use App\Services\DBOX\DBOXClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
+
 class GameLaunchController extends Controller
 {
     public function launch(Request $request)
@@ -29,7 +30,6 @@ class GameLaunchController extends Controller
 
         $game = DBOXGame::with('provider')
             ->where('is_active', true)
-            ->where('supports_launch', true)
             ->findOrFail((int)$v['game_id']);
 
         $okCurrency = $game->currencies()

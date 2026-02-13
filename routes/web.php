@@ -23,6 +23,9 @@ use App\Http\Controllers\Admin\DBOXProviderImgController;
 use App\Http\Controllers\WalletBalanceController;
 use App\Http\Controllers\WithdrawalBankAccountController;
 use App\Http\Controllers\Support\SupportTicketController;
+use App\Http\Controllers\Payments\WinPayDepositController;
+use App\Http\Controllers\Payments\WinPayReturnController;
+use App\Http\Controllers\WinPayNotifyController;
 
 use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\AdminDashboardController;
@@ -157,7 +160,13 @@ Route::middleware(['auth'])->prefix('admin/dbox')->name('admin.dbox.')->group(fu
 
     Route::post('providers/images/{img}/primary', [DBOXProviderImgController::class, 'setPrimary'])
         ->name('providers.images.primary');
+    
+    
+    Route::post('/deposit/winpay', [WinPayDepositController::class, 'create'])->name('deposit.winpay.create');
+    Route::get('/deposit/winpay/query/{billNumber}', [WinPayDepositController::class, 'query'])->name('deposit.winpay.query');
 });
+
+Route::get('/winpay/return', [WinPayReturnController::class, 'handle'])->name('winpay.return');
 
 Route::prefix('admin')->name('admin.')->group(function () {
 

@@ -174,6 +174,13 @@ return [
             'days' => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
         ],
+        
+        'winpay_daily' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/winpay_daily.log'),
+            'level' => env('WINPAY_LOG_LEVEL', 'debug'),
+            'days' => 14,
+        ],
 
 
     ],

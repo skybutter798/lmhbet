@@ -13,7 +13,9 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $this->app->singleton(WinPayClient::class, function () {
+            return WinPayClient::make();
+        });
     }
 
     public function boot(): void

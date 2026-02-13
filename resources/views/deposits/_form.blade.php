@@ -1,7 +1,7 @@
+{{-- /home/lmh/app/resources/views/deposits/_form.blade.php --}}
 <form method="post" action="{{ route('deposit.store') }}" class="dForm">
   @csrf
 
-  {{-- local success is already shown in parent, can keep or remove this one --}}
   @if(session('success'))
     <div class="dFlash">{{ session('success') }}</div>
   @endif
@@ -10,36 +10,125 @@
     Deposit Method <span class="req">*</span>
   </div>
 
-    <div class="dMethods" data-dep-methods>
-      @php $oldMethod = old('method', 'e_wallet'); @endphp
-    
-      <button class="dMethod {{ $oldMethod === 'e_wallet' ? 'is-active' : '' }}"
-              type="button" data-method="e_wallet">
-        <div class="dMethod__ico">💳</div>
-        <div class="dMethod__txt">E-WALLET<br><small>(VPay)</small></div>
-      </button>
-    </div>
+  @php
+    $oldMethod = old('method', 'e_wallet');
+    $oldProvider = old('provider', 'vpay');
+    $oldWinType = old('winpay_type', '01');
+    $oldVpayTradeCode = old('trade_code', '36');
+  @endphp
+
+  <div class="dMethods" data-dep-methods>
+    <!--<button class="dMethod {{ $oldMethod === 'e_wallet' ? 'is-active' : '' }}"
+            type="button" data-method="e_wallet">
+      <div class="dMethod__ico">💳</div>
+      <div class="dMethod__txt">MYR</div>
+    </button>-->
+
+    {{-- <button class="dMethod {{ $oldMethod === 'bank_transfer' ? 'is-active' : '' }}"
+            type="button" data-method="bank_transfer">
+      <div class="dMethod__ico">🏦</div>
+      <div class="dMethod__txt">BANK TRANSFER</div>
+    </button> --}}
+  </div>
+
+  {{-- Provider selector (only for e_wallet) --}}
+  <div class="dMethods" data-dep-providers data-visible-when="e_wallet" style="margin-top:10px;">
+    <button class="dMethod {{ $oldProvider === 'vpay' ? 'is-active' : '' }}"
+            type="button" data-provider="vpay">
+      <div class="dMethod__ico">💳</div>
+      <div class="dMethod__txt">VPAY<br><small></small></div>
+    </button>
+
+    <button class="dMethod {{ $oldProvider === 'winpay' ? 'is-active' : '' }}"
+            type="button" data-provider="winpay">
+      <div class="dMethod__ico">⚡</div>
+      <div class="dMethod__txt">WINPAY<br><small></small></div>
+    </button>
+  </div>
 
   {{-- hidden controls for JS --}}
   <input type="hidden" name="method" value="{{ $oldMethod }}" data-dep-method-input>
+  <input type="hidden" name="provider" value="{{ $oldProvider }}" data-dep-provider-input>
+  <input type="hidden" name="winpay_type" value="{{ $oldWinType }}" data-dep-winpay-type-input>
   <input type="hidden" name="bank_name" value="{{ old('bank_name') }}" data-dep-bank-input>
   <input type="hidden" name="promotion_id" value="{{ old('promotion_id') }}" data-dep-promo-input>
 
-  {{-- method error (if something goes wrong) --}}
+  {{-- NEW: VPAY trade_code --}}
+  <input type="hidden" name="trade_code" value="{{ $oldVpayTradeCode }}" data-dep-trade-code-input>
+
   @error('method')
     <div class="dErr">{{ $message }}</div>
   @enderror
 
-  {{--<div class="dRowHead">
-    <div class="dTitle">Deposit Bank <span class="req">*</span></div>
-    @error('bank_name') <div class="dErr">{{ $message }}</div> @enderror
-  </div>--}}
-
+  {{-- BANK TRANSFER banks --}}
   <div class="dBanks" data-dep-banks data-visible-when="bank_transfer">
     @foreach($banks as $b)
       @php $isBankActive = old('bank_name') === $b; @endphp
       <button type="button" class="dBank {{ $isBankActive ? 'is-active' : '' }}" data-bank="{{ $b }}">
         <div class="dBank__name">{{ $b }}</div>
+        <div class="dBank__tick">✓</div>
+      </button>
+    @endforeach
+  </div>
+
+  {{-- WinPay Type selector --}}
+  <div class="dBanks"
+       data-winpay-types
+       data-visible-when="e_wallet"
+       data-visible-provider="winpay"
+       style="margin-top:10px; display:none;">
+    <button type="button" class="dBank {{ $oldWinType === '01' ? 'is-active' : '' }}" data-winpay-type="01">
+      <div class="dBank__name">FPX</div>
+      <div class="dBank__tick">✓</div>
+    </button>
+
+    <button type="button" class="dBank {{ $oldWinType === '03' ? 'is-active' : '' }}" data-winpay-type="03">
+      <div class="dBank__name">EWallet</div>
+      <div class="dBank__tick">✓</div>
+    </button>
+  </div>
+
+  {{-- WinPay FPX banks (type 01) --}}
+  <div class="dBanks"
+       data-winpay-banks="01"
+       data-visible-when="e_wallet"
+       data-visible-provider="winpay"
+       style="display:none;">
+    @foreach($winpayFpxBanks as $b)
+      @php $isActive = old('bank_name') === $b; @endphp
+      <button type="button" class="dBank {{ $isActive ? 'is-active' : '' }}" data-bank="{{ $b }}">
+        <div class="dBank__name">{{ $b }}</div>
+        <div class="dBank__tick">✓</div>
+      </button>
+    @endforeach
+  </div>
+
+  {{-- WinPay EWallets (type 03) --}}
+  <div class="dBanks"
+       data-winpay-banks="03"
+       data-visible-when="e_wallet"
+       data-visible-provider="winpay"
+       style="display:none;">
+    @foreach($winpayEwallets as $w)
+      @php $isActive = old('bank_name') === $w; @endphp
+      <button type="button" class="dBank {{ $isActive ? 'is-active' : '' }}" data-bank="{{ $w }}">
+        <div class="dBank__name">{{ $w }}</div>
+        <div class="dBank__tick">✓</div>
+      </button>
+    @endforeach
+  </div>
+
+  {{-- NEW: VPAY Channel selector --}}
+  <div class="dBanks"
+       data-vpay-trade-codes
+       data-visible-when="e_wallet"
+       data-visible-provider="vpay"
+       style="margin-top:10px; display:none;">
+    @foreach(($vpayTradeCodes ?? ['36' => 'DUITNOW']) as $code => $label)
+      <button type="button"
+              class="dBank {{ (string)$oldVpayTradeCode === (string)$code ? 'is-active' : '' }}"
+              data-vpay-trade-code="{{ $code }}">
+        <div class="dBank__name">{{ $label }}</div>
         <div class="dBank__tick">✓</div>
       </button>
     @endforeach
@@ -55,6 +144,8 @@
   </div>
 
   @error('amount') <div class="dErr">{{ $message }}</div> @enderror
+  @error('bank_name') <div class="dErr">{{ $message }}</div> @enderror
+  @error('trade_code') <div class="dErr">{{ $message }}</div> @enderror
 
   <div class="dQuick" data-dep-quick>
     @foreach([10, 20, 50, 100, 500, 1000] as $q)
@@ -62,7 +153,6 @@
     @endforeach
   </div>
 
-  {{-- PROMOTION CARDS --}}
   <div class="dTitle">Promotion (Optional)</div>
 
   <div class="depPromos" data-dep-promos>
@@ -122,7 +212,6 @@
     <span>T&amp;C Applies</span>
   </label>
 
-  {{-- SUMMARY BOX --}}
   <div class="depSummary" data-dep-summary data-currency="{{ $currency }}">
     <div class="depSummary__head">Deposit Summary</div>
 

@@ -11,19 +11,14 @@
 
   <main class="accPage">
 
-    {{-- =========================
-        MOBILE
-        ========================= --}}
     <section class="accMobile">
       <div class="wrap">
 
         <div class="dCard">
-          {{-- GLOBAL SUCCESS (bank transfer OR after returning from payment) --}}
           @if(session('success'))
             <div class="dFlash">{{ session('success') }}</div>
           @endif
 
-          {{-- GLOBAL ERROR (e.g. VPay unified order failed) --}}
           @if($errors->any())
             <div class="dFlash dFlash--error">
               {{ $errors->first() }}
@@ -31,7 +26,6 @@
           @endif
 
           @include('deposits._form')
-
         </div>
 
         <div class="dNotice">
@@ -70,8 +64,13 @@
                       @if($h->method === 'bank_transfer')
                         {{ $h->bank_name ?: '-' }}
                       @elseif($h->method === 'e_wallet')
-                        {{-- show provider if present --}}
-                        {{ $h->provider === 'vpay' ? 'E-Wallet (VPay)' : 'E-Wallet' }}
+                        @if($h->provider === 'vpay')
+                          E-Wallet (VPay)
+                        @elseif($h->provider === 'winpay')
+                          E-Wallet (WinPay)
+                        @else
+                          E-Wallet
+                        @endif
                       @else
                         {{ ucfirst(str_replace('_', ' ', $h->method)) }}
                       @endif
@@ -93,6 +92,9 @@
                     @if($h->trade_no)
                       <div class="dHistRef">Gateway: {{ $h->trade_no }}</div>
                     @endif
+                    @if($h->trade_code)
+                      <div class="dHistRef">Channel: {{ $h->trade_code }}</div>
+                    @endif
                   </div>
                 </div>
               @endforeach
@@ -103,9 +105,6 @@
       </div>
     </section>
 
-    {{-- =========================
-        DESKTOP
-        ========================= --}}
     <div class="wrap accGrid accDesktop">
       @include('partials.account_sidebar', ['active' => 'funds', 'activeSub' => 'deposit'])
 
@@ -128,7 +127,6 @@
               @endif
 
               @include('deposits._form')
-
             </div>
 
             <div class="depDeskSide">
@@ -168,7 +166,13 @@
                             @if($h->method === 'bank_transfer')
                               {{ $h->bank_name ?: '-' }}
                             @elseif($h->method === 'e_wallet')
-                              {{ $h->provider === 'vpay' ? 'E-Wallet (VPay)' : 'E-Wallet' }}
+                              @if($h->provider === 'vpay')
+                                E-Wallet (VPay)
+                              @elseif($h->provider === 'winpay')
+                                E-Wallet (WinPay)
+                              @else
+                                E-Wallet
+                              @endif
                             @else
                               {{ ucfirst(str_replace('_', ' ', $h->method)) }}
                             @endif
@@ -189,6 +193,9 @@
                           @endif
                           @if($h->trade_no)
                             <div class="dHistRef">Gateway: {{ $h->trade_no }}</div>
+                          @endif
+                          @if($h->trade_code)
+                            <div class="dHistRef">Channel: {{ $h->trade_code }}</div>
                           @endif
                         </div>
                       </div>

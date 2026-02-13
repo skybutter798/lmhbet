@@ -1,10 +1,7 @@
-/* public/js/account.js */
+/* /home/lmh/app/public/js/account.js */
 (function () {
   'use strict';
 
-  // =========================
-  // Small utils
-  // =========================
   function numVal(v) {
     if (v === null || v === undefined) return 0;
     var s = String(v).trim();
@@ -51,9 +48,6 @@
     document.body.removeChild(ta);
   }
 
-  // =========================
-  // Modals
-  // =========================
   function modalEl(which) {
     if (which === 'email') return document.getElementById('pModalEmail');
     if (which === 'phone') return document.getElementById('pModalPhone');
@@ -77,9 +71,43 @@
     });
   }
 
-  // =========================
-  // Deposit helpers
-  // =========================
+  function updateDepositVisibility(form) {
+    if (!form) return;
+
+    var methodInput = form.querySelector('[data-dep-method-input]');
+    var provInput   = form.querySelector('[data-dep-provider-input]');
+    var typeInput   = form.querySelector('[data-dep-winpay-type-input]');
+
+    var method = methodInput ? (methodInput.value || 'e_wallet') : 'e_wallet';
+    var provider = provInput ? (provInput.value || 'vpay') : 'vpay';
+    var winType = typeInput ? (typeInput.value || '01') : '01';
+
+    form.querySelectorAll('[data-visible-when]').forEach(function (el) {
+      var need = el.getAttribute('data-visible-when');
+      el.style.display = (need === method) ? '' : 'none';
+    });
+
+    form.querySelectorAll('[data-visible-provider]').forEach(function (el) {
+      var needP = el.getAttribute('data-visible-provider');
+      if (method !== 'e_wallet') {
+        el.style.display = 'none';
+        return;
+      }
+      el.style.display = (needP === provider) ? '' : 'none';
+    });
+
+    form.querySelectorAll('[data-winpay-banks]').forEach(function (el) {
+      var t = el.getAttribute('data-winpay-banks');
+      if (method !== 'e_wallet' || provider !== 'winpay') {
+        el.style.display = 'none';
+        return;
+      }
+      el.style.display = (t === winType) ? '' : 'none';
+    });
+
+    // VPAY trade codes block is handled by data-visible-provider="vpay"
+  }
+
   function updateDepositSummary(form) {
     if (!form) return;
 
@@ -179,9 +207,6 @@
     updateDepositSummary(form);
   }
 
-  // =========================
-  // Tabs (mobile + desktop)
-  // =========================
   function initTabs(container) {
     if (!container) return;
 
@@ -217,9 +242,6 @@
     setTab(firstActive ? firstActive.getAttribute('data-tab') : tabs[0].getAttribute('data-tab'));
   }
 
-  // =========================
-  // Internal Transfer init
-  // =========================
   function walletLabel(t) {
     if (t === 'main') return 'Cash';
     if (t === 'chips') return 'Chips';
@@ -269,7 +291,7 @@
       if (toNameEl) toNameEl.textContent = walletLabel(to);
 
       if (fromBalEl) fromBalEl.textContent = currency + ' ' + moneyFmtDisplay(getBal(from));
-      if (toBalEl)   toBalEl.textContent   = currency + ' ' + moneyFmtDisplay(getBal(to));
+      if (toBalEl) toBalEl.textContent = currency + ' ' + moneyFmtDisplay(getBal(to));
 
       if (maxBtn) maxBtn.setAttribute('data-max-value', String(getBal(from)));
 
@@ -312,9 +334,6 @@
     setActive(first);
   }
 
-  // =========================
-  // Bonus poller (wallet page)
-  // =========================
   var bonusTimer = null;
 
   function hasBonusRows() {
@@ -379,11 +398,7 @@
     fetchBonus();
   });
 
-  // =========================
-  // Global click handler (delegation)
-  // =========================
   document.addEventListener('click', function (e) {
-    // open profile modal
     var opener = e.target.closest('[data-open-prof-modal]');
     if (opener) {
       e.preventDefault();
@@ -391,7 +406,6 @@
       return;
     }
 
-    // open kyc modal
     var kycBtn = e.target.closest('[data-open-kyc-modal]');
     if (kycBtn) {
       e.preventDefault();
@@ -399,7 +413,6 @@
       return;
     }
 
-    // open withdraw add account modal
     var addAcc = e.target.closest('[data-open-withdraw-add-account]');
     if (addAcc) {
       e.preventDefault();
@@ -407,14 +420,12 @@
       return;
     }
 
-    // close modal
     if (e.target.closest('[data-close-prof-modal]')) {
       e.preventDefault();
       closeAll();
       return;
     }
 
-    // copy referral
     var btn = e.target.closest('[data-copy-ref]');
     if (btn) {
       e.preventDefault();
@@ -427,7 +438,6 @@
       return;
     }
 
-    // mobile dashboard collapse
     var mdBtn = e.target.closest('[data-mdash-toggle]');
     if (mdBtn) {
       var card = mdBtn.closest('[data-mdash]');
@@ -443,7 +453,6 @@
       return;
     }
 
-    // withdraw notice toggle
     var nt = e.target.closest('[data-withdraw-notice-toggle]');
     if (nt) {
       e.preventDefault();
@@ -455,7 +464,6 @@
       return;
     }
 
-    // withdraw quick amount
     var qbtn = e.target.closest('[data-withdraw-quick] [data-amt]');
     if (qbtn) {
       e.preventDefault();
@@ -467,10 +475,6 @@
       inputAmt.focus();
       return;
     }
-
-    // =========================
-    // DEPOSIT (scoped per form)
-    // =========================
 
     // deposit: method select
     var mBtn = e.target.closest('[data-dep-methods] [data-method]');
@@ -491,34 +495,128 @@
         var inputM = form.querySelector('[data-dep-method-input]');
         if (inputM) inputM.value = method;
 
-        form.querySelectorAll('[data-visible-when]').forEach(function (el) {
-          var need = el.getAttribute('data-visible-when');
-          el.style.display = (need === method) ? '' : 'none';
-        });
+        updateDepositVisibility(form);
       }
 
       return;
     }
 
-    // deposit: bank select
-    var bBtn = e.target.closest('[data-dep-banks] [data-bank]');
-    if (bBtn) {
+    // deposit: provider select (vpay / winpay)
+    var pBtn = e.target.closest('[data-dep-providers] [data-provider]');
+    if (pBtn) {
       e.preventDefault();
 
-      var form2 = bBtn.closest('form');
-      var banks = bBtn.closest('[data-dep-banks]');
-      if (!form2 || !banks) return;
+      var formP = pBtn.closest('form');
+      var wrapP = pBtn.closest('[data-dep-providers]');
+      if (!formP || !wrapP) return;
 
-      banks.querySelectorAll('[data-bank]').forEach(function (b) {
+      wrapP.querySelectorAll('[data-provider]').forEach(function (b) {
         b.classList.remove('is-active');
       });
-      bBtn.classList.add('is-active');
+      pBtn.classList.add('is-active');
 
-      var bank = bBtn.getAttribute('data-bank');
-      var inputB = form2.querySelector('[data-dep-bank-input]');
-      if (inputB) inputB.value = bank;
+      var provider = pBtn.getAttribute('data-provider') || 'vpay';
+      var inProv = formP.querySelector('[data-dep-provider-input]');
+      if (inProv) inProv.value = provider;
+
+      // reset bank selection on provider switch
+      var inBank = formP.querySelector('[data-dep-bank-input]');
+      if (inBank) inBank.value = '';
+
+      // reset vpay trade_code to default on provider switch
+      var inTc = formP.querySelector('[data-dep-trade-code-input]');
+      if (inTc) inTc.value = '36';
+
+      // clear active bank buttons
+      formP.querySelectorAll('[data-dep-banks] [data-bank], [data-winpay-banks] [data-bank]').forEach(function (b) {
+        b.classList.remove('is-active');
+      });
+
+      // clear active vpay trade code buttons + set default active
+      formP.querySelectorAll('[data-vpay-trade-codes] [data-vpay-trade-code]').forEach(function (b) {
+        b.classList.remove('is-active');
+      });
+      var defBtn = formP.querySelector('[data-vpay-trade-codes] [data-vpay-trade-code="36"]');
+      if (defBtn) defBtn.classList.add('is-active');
+
+      updateDepositVisibility(formP);
+      return;
+    }
+
+    // deposit: winpay type select (01 / 03)
+    var tBtn = e.target.closest('[data-winpay-types] [data-winpay-type]');
+    if (tBtn) {
+      e.preventDefault();
+
+      var formT = tBtn.closest('form');
+      var wrapT = tBtn.closest('[data-winpay-types]');
+      if (!formT || !wrapT) return;
+
+      wrapT.querySelectorAll('[data-winpay-type]').forEach(function (b) {
+        b.classList.remove('is-active');
+      });
+      tBtn.classList.add('is-active');
+
+      var type = tBtn.getAttribute('data-winpay-type') || '01';
+      var inType = formT.querySelector('[data-dep-winpay-type-input]');
+      if (inType) inType.value = type;
+
+      // reset bank selection on type switch
+      var inBank2 = formT.querySelector('[data-dep-bank-input]');
+      if (inBank2) inBank2.value = '';
+
+      // clear active bank buttons
+      formT.querySelectorAll('[data-winpay-banks] [data-bank]').forEach(function (b) {
+        b.classList.remove('is-active');
+      });
+
+      updateDepositVisibility(formT);
+      return;
+    }
+
+    // deposit: vpay trade_code select
+    var vcBtn = e.target.closest('[data-vpay-trade-codes] [data-vpay-trade-code]');
+    if (vcBtn) {
+      e.preventDefault();
+
+      var formV = vcBtn.closest('form');
+      var wrapV = vcBtn.closest('[data-vpay-trade-codes]');
+      if (!formV || !wrapV) return;
+
+      wrapV.querySelectorAll('[data-vpay-trade-code]').forEach(function (b) {
+        b.classList.remove('is-active');
+      });
+      vcBtn.classList.add('is-active');
+
+      var code = vcBtn.getAttribute('data-vpay-trade-code') || '36';
+      var inCode = formV.querySelector('[data-dep-trade-code-input]');
+      if (inCode) inCode.value = code;
 
       return;
+    }
+
+    // deposit: bank select
+    var bBtn = e.target.closest('[data-bank]');
+    if (bBtn) {
+      var form2 = bBtn.closest('form.dForm');
+      var banksWrap = bBtn.closest('[data-dep-banks], [data-winpay-banks]');
+      if (!form2 || !banksWrap) {
+        // not a deposit bank button
+      } else {
+        e.preventDefault();
+
+        form2.querySelectorAll('[data-dep-banks] [data-bank], [data-winpay-banks] [data-bank]').forEach(function (b) {
+          b.classList.remove('is-active');
+        });
+
+        bBtn.classList.add('is-active');
+
+        var bank = bBtn.getAttribute('data-bank');
+        var inputB = form2.querySelector('[data-dep-bank-input]');
+        if (inputB) inputB.value = bank;
+
+        return;
+      }
     }
 
     // deposit: quick amount
@@ -597,19 +695,9 @@
     }
   });
 
-  // =========================
-  // DOM ready init
-  // =========================
   document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('form.dForm').forEach(function (form) {
-      var methodInput = form.querySelector('[data-dep-method-input]');
-      if (methodInput) {
-        var method = methodInput.value || 'bank_transfer';
-        form.querySelectorAll('[data-visible-when]').forEach(function (el) {
-          var need = el.getAttribute('data-visible-when');
-          el.style.display = (need === method) ? '' : 'none';
-        });
-      }
+      updateDepositVisibility(form);
 
       var amtInput = form.querySelector('[data-dep-amount]');
       if (amtInput) {
