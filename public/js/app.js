@@ -245,6 +245,56 @@ document.addEventListener("DOMContentLoaded", () => {
       window.__OPEN_AUTH_MODAL__ = null;
     }
   })();
+  
+  (function () {
+      function closeAll(exceptRoot) {
+        document.querySelectorAll('[data-lang-dd]').forEach((root) => {
+          if (exceptRoot && root === exceptRoot) return;
+          const btn = root.querySelector('[data-lang-dd-btn]');
+          const menu = root.querySelector('[data-lang-dd-menu]');
+          if (!btn || !menu) return;
+          btn.setAttribute('aria-expanded', 'false');
+          menu.hidden = true;
+        });
+      }
+    
+      document.addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-lang-dd-btn]');
+          const root = e.target.closest('[data-lang-dd]');
+        
+          // Clicked a dropdown button
+          if (btn && root) {
+            e.preventDefault();
+            e.stopPropagation();
+        
+            const menu = root.querySelector('[data-lang-dd-menu]');
+            const expanded = btn.getAttribute('aria-expanded') === 'true';
+        
+            closeAll(root);
+        
+            btn.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+            if (menu) menu.hidden = expanded;
+        
+            return;
+          }
+        
+          // Clicked inside an open dropdown menu
+          if (root && root.querySelector('[data-lang-dd-menu]')?.contains(e.target)) {
+            e.stopPropagation();
+            return;
+          }
+        
+          // Click outside
+          if (!root) closeAll();
+        });
+
+    
+      // Close on ESC
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeAll();
+      });
+    })();
+
 
   // Accordion
   document.querySelectorAll("[data-accordion]").forEach((acc) => {

@@ -3,6 +3,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use App\Services\GoogleTranslate;
 
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -41,6 +42,25 @@ use App\Http\Controllers\Admin\AdminProfileController;
 use App\Http\Controllers\WalletBonusController;
 use App\Http\Controllers\Admin\AdminSupportController;
 
+Route::get('/gt/{lang}', function (string $lang) {
+    $supported = ['en', 'ms', 'zh-CN']; // English, Malay, Chinese (Simplified)
+
+    abort_unless(in_array($lang, $supported, true), 404);
+
+    session(['gt_lang' => $lang]);
+
+    return back();
+})->name('gt.lang');
+
+Route::get('/__gt_test', function (GoogleTranslate $gt) {
+    $lang = request('lang', 'ms');
+
+    return response()->json([
+        'lang' => $lang,
+        'key_loaded' => (bool) config('google_translate.key'),
+        'out' => $gt->translateMany(['Hello world', 'Wallet', 'Promotions'], $lang),
+    ]);
+});
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 

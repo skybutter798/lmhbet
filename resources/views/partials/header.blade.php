@@ -11,6 +11,27 @@
   };
 @endphp
 
+@php
+  $walletBalances = $walletBalances ?? [];
+
+  $cash  = (float) ($walletBalances['main']  ?? 0);
+  $chips = (float) ($walletBalances['chips'] ?? 0);
+  $bonus = (float) ($walletBalances['bonus'] ?? 0);
+
+  $fmt = function ($v) {
+    return number_format((float)$v, 2, '.', ',');
+  };
+
+  $gtLang = session('gt_lang', 'en');
+  $gtLabel = match ($gtLang) {
+    'zh-CN' => '中文',
+    'ms'    => 'BM',
+    default => 'EN',
+  };
+@endphp
+
+
+
 <header class="topbar">
   <div class="wrap topbar__inner">
 
@@ -24,8 +45,39 @@
       <img class="brand__img" src="{{ asset('images/lmh_logo.png') }}" alt="LMH Logo">
       <span class="brand__name">LUCKY MONEY HOUSE</span>
     </a>
+    
+    {{-- Mobile language dropdown (beside logo) --}}
+    <div class="topbar__right topbar__right--mobile">
+      <div class="langDD langDD--mobile notranslate" translate="no" data-lang-dd>
+        <button class="langDD__btn" type="button" aria-expanded="false" data-lang-dd-btn>
+          <span class="langDD__txt">{{ $gtLabel }}</span>
+          <span class="langDD__caret" aria-hidden="true">▾</span>
+        </button>
+    
+        <div class="langDD__menu" hidden data-lang-dd-menu>
+          <a class="langDD__item" href="{{ route('gt.lang', ['lang' => 'en']) }}">EN</a>
+          <a class="langDD__item" href="{{ route('gt.lang', ['lang' => 'zh-CN']) }}">中文</a>
+          <a class="langDD__item" href="{{ route('gt.lang', ['lang' => 'ms']) }}">BM</a>
+        </div>
+      </div>
+    </div>
+
 
     <div class="topbar__right topbar__right--desktop">
+        {{-- Desktop language dropdown --}}
+      <div class="langDD langDD--desktop notranslate" translate="no" data-lang-dd>
+        <button class="langDD__btn" type="button" aria-expanded="false" data-lang-dd-btn>
+          <span class="langDD__txt">{{ $gtLabel }}</span>
+          <span class="langDD__caret" aria-hidden="true">▾</span>
+        </button>
+    
+        <div class="langDD__menu" hidden data-lang-dd-menu>
+          <a class="langDD__item" href="{{ route('gt.lang', ['lang' => 'en']) }}">EN</a>
+          <a class="langDD__item" href="{{ route('gt.lang', ['lang' => 'zh-CN']) }}">中文</a>
+          <a class="langDD__item" href="{{ route('gt.lang', ['lang' => 'ms']) }}">BM</a>
+        </div>
+      </div>
+      
       @guest
         <button class="link linkBtn" type="button" data-open-modal="login">Login</button>
         <button class="btn btn--primary" type="button" data-open-modal="register">Join Now</button>

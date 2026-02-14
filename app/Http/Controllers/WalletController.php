@@ -1,11 +1,15 @@
 <?php
 
+// app/Http/Controllers/WalletController.php
+
 namespace App\Http\Controllers;
 
+use App\Models\BetRecord;
 use App\Models\DepositRequest;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -13,11 +17,10 @@ use Illuminate\View\View;
 
 class WalletController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
         $user = auth()->user();
 
-        // Only real wallets you want to show/use
         $wallets = $user->wallets()
             ->whereIn('type', ['main', 'chips'])
             ->get()
@@ -33,7 +36,6 @@ class WalletController extends Controller
             ->limit(50)
             ->get();
 
-        // ✅ Pending bonus preparing to release
         $pendingBonus = (float) DepositRequest::query()
             ->where('user_id', $user->id)
             ->whereNotNull('promotion_id')
@@ -41,26 +43,57 @@ class WalletController extends Controller
             ->where('bonus_status', 'in_progress')
             ->sum('bonus_amount');
 
+        // =========================
+        // BETTING SUMMARY + DATE FILTER
+        // URL: /wallet?bet_from=2026-01-01&bet_to=2026-01-31
+        // =========================
+        $v = $request->validate([
+            'bet_from' => ['nullable', 'date'],
+            'bet_to'   => ['nullable', 'date', 'after_or_equal:bet_from'],
+        ]);
+
+        $betQ = BetRecord::query()->where('user_id', $user->id);
+
+        if (!empty($v['bet_from'])) {
+            $betQ->where('bet_at', '>=', Carbon::parse($v['bet_from'])->startOfDay());
+        }
+        if (!empty($v['bet_to'])) {
+            $betQ->where('bet_at', '<=', Carbon::parse($v['bet_to'])->endOfDay());
+        }
+
+        $betSummary = $betQ->selectRaw('
+            COUNT(*) AS total_bets,
+            SUM(CASE WHEN status = "settled" THEN 1 ELSE 0 END) AS settled_bets,
+            SUM(CASE WHEN status = "open" THEN 1 ELSE 0 END) AS open_bets,
+
+            COALESCE(SUM(stake_amount), 0) AS total_turnover,
+
+            COALESCE(SUM(CASE WHEN status = "settled" THEN payout_amount ELSE 0 END), 0) AS total_payout,
+            COALESCE(SUM(CASE WHEN status = "settled" THEN profit_amount ELSE 0 END), 0) AS net_profit,
+
+            MIN(bet_at) AS first_bet_at,
+            MAX(bet_at) AS last_bet_at,
+            MAX(settled_at) AS last_settled_at,
+
+            SUM(CASE WHEN status = "settled" AND profit_amount > 0 THEN 1 ELSE 0 END) AS win_bets,
+            SUM(CASE WHEN status = "settled" AND profit_amount < 0 THEN 1 ELSE 0 END) AS lose_bets,
+            SUM(CASE WHEN status = "settled" AND profit_amount = 0 THEN 1 ELSE 0 END) AS draw_bets
+        ')->first();
+
         return view('wallets.index', [
             'title' => 'Wallet',
             'cash'  => $wallets->get('main')?->balance ?? 0,
             'chips' => $wallets->get('chips')?->balance ?? 0,
-
-            // now bonus = pending promo bonus, NOT wallet(type=bonus)
             'bonus' => $pendingBonus,
-
             'currency' => $user->currency ?? 'MYR',
             'bonusRecords' => $bonusRecords,
+
+            'betSummary' => $betSummary,
+            'betFrom' => $v['bet_from'] ?? null,
+            'betTo'   => $v['bet_to'] ?? null,
         ]);
     }
 
-    /**
-     * ✅ Internal transfer only:
-     * chips -> main
-     * main  -> chips
-     *
-     * (bonus wallet transfer removed because "bonus" is now pending promo display)
-     */
     public function transferInternal(Request $request)
     {
         $user = $request->user();
@@ -97,16 +130,7 @@ class WalletController extends Controller
         $ua = (string) $request->userAgent();
         $occurredAt = now();
 
-        DB::transaction(function () use (
-            $user,
-            $from,
-            $to,
-            $amtCents,
-            $groupRef,
-            $ip,
-            $ua,
-            $occurredAt
-        ) {
+        DB::transaction(function () use ($user, $from, $to, $amtCents, $groupRef, $ip, $ua, $occurredAt) {
             $wallets = $user->wallets()
                 ->whereIn('type', [$from, $to])
                 ->lockForUpdate()

@@ -18,7 +18,48 @@
   @if(session('success') || $errors->any())
     <script>window.__OPEN_PROFILE_MODAL__ = 'walletTransfer';</script>
   @endif
-
+  
+  
+  @php
+      // place this ONCE near the top (before mobile/desktop betting blocks)
+      $qFrom = request('bet_from');
+      $qTo   = request('bet_to');
+    
+      $qFromVal = $qFrom ? \Illuminate\Support\Carbon::parse($qFrom)->format('Y-m-d') : '';
+      $qToVal   = $qTo   ? \Illuminate\Support\Carbon::parse($qTo)->format('Y-m-d')   : '';
+    
+      $turnover = (float)($betSummary->total_turnover ?? 0);
+      $payout   = (float)($betSummary->total_payout ?? 0);
+      $net      = (float)($betSummary->net_profit ?? 0);
+    
+      $netCls = $net > 0 ? 'betV--pos' : ($net < 0 ? 'betV--neg' : 'betV--neu');
+    
+      $fb = !empty($betSummary?->first_bet_at)
+        ? \Illuminate\Support\Carbon::parse($betSummary->first_bet_at)->format('Y-m-d')
+        : null;
+    
+      $lb = !empty($betSummary?->last_bet_at)
+        ? \Illuminate\Support\Carbon::parse($betSummary->last_bet_at)->format('Y-m-d')
+        : null;
+    
+      $totalBets   = (int)($betSummary->total_bets ?? 0);
+      $settledBets = (int)($betSummary->settled_bets ?? 0);
+      $openBets    = (int)($betSummary->open_bets ?? 0);
+    
+      $win  = (int)($betSummary->win_bets ?? 0);
+      $lose = (int)($betSummary->lose_bets ?? 0);
+      $draw = (int)($betSummary->draw_bets ?? 0);
+    
+      if ($qFromVal || $qToVal) {
+        if ($qFromVal && $qToVal) $rangeLabel = $qFromVal.' → '.$qToVal;
+        else if ($qFromVal)       $rangeLabel = 'From '.$qFromVal;
+        else                      $rangeLabel = 'Until '.$qToVal;
+      } else if ($fb && $lb) {
+        $rangeLabel = $fb.' → '.$lb;
+      } else {
+        $rangeLabel = 'No records';
+      }
+    @endphp
   <main class="accPage">
 
     {{-- =========================
@@ -49,7 +90,6 @@
             <div class="mWallet__row">
               <span class="mWallet__label">Bonus</span>
               <span class="mWallet__val">{{ $fmt($bonus) }}</span>
-              <span class="mWallet__badge" title="Bonus">↗</span>
             </div>
           </div>
         </div>
@@ -70,6 +110,162 @@
             <span class="mTile__ico">＋</span>
             <span class="mTile__txt">Deposit</span>
           </a>
+        </div>
+        
+        {{-- =========================
+            BETTING SUMMARY (MOBILE - WITH DATE FILTER)
+            ========================= --}}
+        <div class="mBlock betCard" id="mBetSummary">
+          <div class="betHead">
+            <div class="betTitle">
+              <span class="betTitle__ico">🎯</span>
+              <span class="betTitle__txt">Betting Summary</span>
+            </div>
+            <div class="betPill">{{ $rangeLabel }}</div>
+          </div>
+        
+          <form class="betFilter" method="GET" action="{{ url()->current() }}">
+            @foreach(request()->except(['bet_from','bet_to','page']) as $k => $v)
+              @if(is_array($v))
+                @foreach($v as $vv)
+                  <input type="hidden" name="{{ $k }}[]" value="{{ $vv }}">
+                @endforeach
+              @else
+                <input type="hidden" name="{{ $k }}" value="{{ $v }}">
+              @endif
+            @endforeach
+        
+            <div class="betFilter__row">
+              <div class="betFilter__field">
+                <div class="betFilter__k">From</div>
+                <input class="betFilter__input" type="date" name="bet_from" value="{{ $qFromVal }}">
+              </div>
+        
+              <div class="betFilter__field">
+                <div class="betFilter__k">To</div>
+                <input class="betFilter__input" type="date" name="bet_to" value="{{ $qToVal }}">
+              </div>
+            </div>
+        
+            <div class="betFilter__actions">
+              <button class="betFilter__btn" type="submit">Apply</button>
+              <a class="betFilter__clear" href="{{ url()->current() }}">Clear</a>
+            </div>
+          </form>
+        
+          <div class="betHero">
+            <div class="betHero__ico">💸</div>
+            <div class="betHero__meta">
+              <div class="betHero__k">Total Turnover</div>
+              <div class="betHero__v">{{ $currency }} {{ $fmt($turnover) }}</div>
+            </div>
+          </div>
+        
+          <div class="betGrid">
+            <div class="betItem">
+              <div class="betK">Total Payout</div>
+              <div class="betV">{{ $currency }} {{ $fmt($payout) }}</div>
+              <div class="betS">Settled only</div>
+            </div>
+        
+            <div class="betItem">
+              <div class="betK">Net Profit/Loss</div>
+              <div class="betV {{ $netCls }}">{{ $currency }} {{ $fmt($net) }}</div>
+              <div class="betS">Settled only</div>
+            </div>
+        
+            <div class="betItem">
+              <div class="betK">Bets</div>
+              <div class="betV">{{ $totalBets }}</div>
+              <div class="betS">S {{ $settledBets }} · O {{ $openBets }}</div>
+            </div>
+        
+            <div class="betItem">
+              <div class="betK">Win / Lose / Draw</div>
+              <div class="betV">{{ $win }} / {{ $lose }} / {{ $draw }}</div>
+              <div class="betS">Settled only</div>
+            </div>
+          </div>
+        </div>
+
+
+        
+        <div class="mBlock betCard" id="mBetSummary">
+          <div class="betHead">
+            <div class="betTitle">
+              <span class="betTitle__ico">🎯</span>
+              <span class="betTitle__txt">Betting Summary</span>
+            </div>
+        
+            <div class="betPill">{{ $rangeLabel }}</div>
+          </div>
+        
+          {{-- Date filter --}}
+          <form class="betFilter" method="GET" action="{{ url()->current() }}">
+            {{-- keep other query params (if any), but replace bet_from/bet_to --}}
+            @foreach(request()->except(['bet_from','bet_to','page']) as $k => $v)
+              @if(is_array($v))
+                @foreach($v as $vv)
+                  <input type="hidden" name="{{ $k }}[]" value="{{ $vv }}">
+                @endforeach
+              @else
+                <input type="hidden" name="{{ $k }}" value="{{ $v }}">
+              @endif
+            @endforeach
+        
+            <div class="betFilter__row">
+              <div class="betFilter__field">
+                <div class="betFilter__k">From</div>
+                <input class="betFilter__input" type="date" name="bet_from" value="{{ $qFromVal }}">
+              </div>
+        
+              <div class="betFilter__field">
+                <div class="betFilter__k">To</div>
+                <input class="betFilter__input" type="date" name="bet_to" value="{{ $qToVal }}">
+              </div>
+            </div>
+        
+            <div class="betFilter__actions">
+              <button class="betFilter__btn" type="submit">Apply</button>
+              <a class="betFilter__clear" href="{{ url()->current() }}">Clear</a>
+            </div>
+          </form>
+        
+          {{-- Turnover hero --}}
+          <div class="betHero">
+            <div class="betHero__ico">💸</div>
+            <div class="betHero__meta">
+              <div class="betHero__k">Total Turnover</div>
+              <div class="betHero__v">{{ $currency }} {{ $fmt($turnover) }}</div>
+            </div>
+          </div>
+        
+          {{-- stats grid --}}
+          <div class="betGrid">
+            <div class="betItem">
+              <div class="betK">Total Payout</div>
+              <div class="betV">{{ $currency }} {{ $fmt($payout) }}</div>
+              <div class="betS">Settled only</div>
+            </div>
+        
+            <div class="betItem">
+              <div class="betK">Net Profit/Loss</div>
+              <div class="betV {{ $netCls }}">{{ $currency }} {{ $fmt($net) }}</div>
+              <div class="betS">Settled only</div>
+            </div>
+        
+            <div class="betItem">
+              <div class="betK">Bets</div>
+              <div class="betV">{{ $totalBets }}</div>
+              <div class="betS">S {{ $settledBets }} · O {{ $openBets }}</div>
+            </div>
+        
+            <div class="betItem">
+              <div class="betK">Win / Lose / Draw</div>
+              <div class="betV">{{ $win }} / {{ $lose }} / {{ $draw }}</div>
+              <div class="betS">Settled only</div>
+            </div>
+          </div>
         </div>
 
         {{-- Bonus Record (mobile) --}}
@@ -197,6 +393,79 @@
           <a class="accBtn" href="#" data-open-prof-modal="walletTransfer"><span class="accBtn__ico">⇄</span> Transfer</a>
           <a class="accBtn" href="{{ route('withdraw.index') }}"><span class="accBtn__ico">↗</span> Withdrawal</a>
           <a class="accBtn" href="{{ route('deposit.index') }}"><span class="accBtn__ico">＋</span> Deposit</a>
+        </div>
+        
+        {{-- =========================
+            BETTING SUMMARY (DESKTOP - WITH DATE FILTER)
+            ========================= --}}
+        <div class="accBlock betCard betCard--desk">
+          <div class="accBlock__head betHead betHead--desk">
+            <div class="betTitle">
+              <span class="betTitle__ico">🎯</span>
+              <span class="betTitle__txt">Betting Summary</span>
+            </div>
+        
+            <div style="display:flex; align-items:center; gap:10px; margin-left:auto;">
+              <div class="betPill">{{ $rangeLabel }}</div>
+        
+              <form class="betFilter betFilter--desk" method="GET" action="{{ url()->current() }}">
+                @foreach(request()->except(['bet_from','bet_to','page']) as $k => $v)
+                  @if(is_array($v))
+                    @foreach($v as $vv)
+                      <input type="hidden" name="{{ $k }}[]" value="{{ $vv }}">
+                    @endforeach
+                  @else
+                    <input type="hidden" name="{{ $k }}" value="{{ $v }}">
+                  @endif
+                @endforeach
+        
+                <div class="betFilter__row betFilter__row--desk">
+                  <input class="betFilter__input" type="date" name="bet_from" value="{{ $qFromVal }}">
+                  <span class="betFilter__sep">→</span>
+                  <input class="betFilter__input" type="date" name="bet_to" value="{{ $qToVal }}">
+                  <button class="betFilter__btn" type="submit">Apply</button>
+                  <a class="betFilter__clear" href="{{ url()->current() }}">Clear</a>
+                </div>
+              </form>
+            </div>
+          </div>
+        
+          <div class="betDeskWrap">
+            <div class="betHero betHero--desk">
+              <div class="betHero__ico">💸</div>
+              <div class="betHero__meta">
+                <div class="betHero__k">Total Turnover</div>
+                <div class="betHero__v">{{ $currency }} {{ $fmt($turnover) }}</div>
+                <div class="betHero__hint">Sum of all stake amounts</div>
+              </div>
+            </div>
+        
+            <div class="betGrid betGrid--desk">
+              <div class="betItem">
+                <div class="betK">Total Payout</div>
+                <div class="betV">{{ $currency }} {{ $fmt($payout) }}</div>
+                <div class="betS">Settled only</div>
+              </div>
+        
+              <div class="betItem">
+                <div class="betK">Net Profit/Loss</div>
+                <div class="betV {{ $netCls }}">{{ $currency }} {{ $fmt($net) }}</div>
+                <div class="betS">Settled only</div>
+              </div>
+        
+              <div class="betItem">
+                <div class="betK">Bets</div>
+                <div class="betV">{{ $totalBets }}</div>
+                <div class="betS">Settled {{ $settledBets }} · Open {{ $openBets }}</div>
+              </div>
+        
+              <div class="betItem">
+                <div class="betK">Win / Lose / Draw</div>
+                <div class="betV">{{ $win }} / {{ $lose }} / {{ $draw }}</div>
+                <div class="betS">Settled only</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {{-- Bonus Record (desktop) --}}
